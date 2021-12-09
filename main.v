@@ -1,55 +1,92 @@
 module main
+import os
 
-#flag @VROOT/wireguard.o
-#flag -I @VROOT
-#include "wireguard.h"
-fn C.wg_list_device_names() &char
-fn C.wg_get_device(dev &&C.wg_device, device_name &char) int
-fn C.wg_add_device(device_name &char) int
-fn C.wg_del_device(device_name &char) int
-fn C.wg_key_to_base64(base64 &char, key &byte)
-fn C.wg_generate_private_key(private_key &byte)
-fn C.wg_generate_public_key(public_key &byte, private_key &byte)
-fn C.wg_key_is_zero(key &byte) bool
-
-struct C.wg_key {}
-struct C.wg_peer {}
-
-struct C.wg_device {
-	name &char
-	ifindex u32
-	flags int
-
-	public_key &byte
-	private_key &byte
-
-	fwmark u32
-	listen_port u16
-
-	first_peer &C.wg_peer
-	last_peer &C.wg_peer
+struct Device {
+  base C.wg_device
 }
 
-fn cstring_array_to_vstring_array(array &char) []string {
-	mut result := []string{}
-	mut p := unsafe { array }
-	println(p)
-	println(int(*(p+4)))
-	println((p+4))
-	for int(*p) != 0 {
-		println(p)
-	        s := unsafe { cstring_to_vstring(p)}
-		println(s)
-		println(p)
-		println(s.len)
-        	p = unsafe { p+s.len+1 }
-		println(p)
-		println(int(*p))
-		result << s
-	}
-	return result
+fn new_device(name string) ?Device {
+  mut rc := -1
+  rc = C.wg_add_device(name.str)
+  if rc != 0 {
+    return error('wg_add_device() failed')
+  }
+
+  mut base := &C.wg_device(0)
+  rc = C.wg_get_device(&base, name.str)
+  if rc != 0 {
+    return error('wg_get_device() failed')
+  }
+
+  private_key := []byte{len: 32}
+  C.wg_generate_private_key(private_key.data)
+
+  public_key := []byte{len: 32}
+  C.wg_generate_public_key(public_key.data, private_key.data)
+
+  vmemcpy(base.public_key, public_key.data, 32)
+  vmemcpy(base.private_key, private_key.data, 32)
+  base.flags = base.flags | C.WGDEVICE_HAS_PRIVATE_KEY | C.WGDEVICE_HAS_PUBLIC_KEY
+
+  base.listen_port = 21212
+  base.flags = base.flags | C.WGDEVICE_HAS_LISTEN_PORT
+
+  rc = C.wg_set_device(base)
+  if rc != 0 {
+    return error('wg_set_device() failed')
+  }
+
+  println(C.wg_key_is_zero(base.public_key))
+
+  return Device{
+    base: base,
+  }
 }
 
+fn (d Device) destroy() {
+  C.wg_del_device(d.base.name)
+}
+
+fn bootstrap() {
+  // create device
+  // generate keys
+  // decide listen port
+  // assign ip address
+  C.wg_add_device(c"pwg0")
+
+  private_key := []byte{len: 32}
+  C.wg_generate_private_key(private_key.data)
+
+  public_key := []byte{len: 32}
+  C.wg_generate_public_key(public_key.data, private_key.data)
+}
+
+fn generate_join_config() {
+  // setup keys
+  // discover endpoint address
+  // output peer connection config
+  // add peer
+}
+
+fn join_peer() {
+  // create device
+  // read config
+  // setup keys
+  // add peer
+}
+
+// if full-meshed, N(N-1)/2 peers needs configured
+// eg.) N=1000, 499500 ...
+
+fn main() {
+  device := new_device("pwg0")?
+  println(device)
+  os.get_line()
+  device.destroy()
+}
+
+
+/*
 fn main() {
 	C.wg_add_device(c"pwg0")
 	p := C.wg_list_device_names()
@@ -75,3 +112,4 @@ fn main() {
 	println(b64)
 	C.wg_del_device(c"pwg0")
 }
+*/
