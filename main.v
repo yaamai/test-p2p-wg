@@ -1,5 +1,6 @@
 module main
 import os
+import chord
 
 struct Device {
   base C.wg_device
@@ -79,10 +80,6 @@ fn join_peer() {
 // eg.) N=1000, 499500 ...
 
 fn main() {
-  device := new_device("pwg0")?
-  println(device)
-  os.get_line()
-  device.destroy()
 }
 
 
