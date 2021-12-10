@@ -1,20 +1,18 @@
 module chord
 
-struct ID {
-}
-
-fn (i ID) distance() int {
-  return 0
+interface ID {
+  RingPositional
 }
 
 interface RingPositional {
-  is_predecessor(other RingPositional) bool
-  is_successor(other RingPositional) bool
-  equal(other RingPositional) bool
+  // BUG: why can't use RingPositional in other's type?
+  is_predecessor(other ID) bool
+  is_successor(other ID) bool
+  equal(other ID) bool
 }
 
 struct Node {
-  id ID
+  id RingPositional
   routes Routes
 }
 
@@ -24,18 +22,18 @@ struct Routes {
 }
 
 struct SuccessorRoute {
-  id ID
+  id RingPositional
   comm Communicatable
 }
 
 struct FingerRoute {
-  id ID
+  id RingPositional
   comm Communicatable
 }
 
 interface Communicatable {
-  get_predecessor() ID
-  check_predecessor(id ID) ID
+  get_predecessor() RingPositional
+  check_predecessor(id RingPositional) RingPositional
 }
 
 fn bootstrap(id ID) Node {
