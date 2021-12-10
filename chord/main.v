@@ -1,54 +1,41 @@
 module chord
 
 interface ID {
-  RingPositional
-}
-
-interface RingPositional {
-  // BUG: why can't use RingPositional in other's type?
-  is_predecessor(other ID) bool
-  is_successor(other ID) bool
-  equal(other ID) bool
+  equal(id ID) bool
 }
 
 struct Node {
-  id RingPositional
-  routes Routes
+  id ID
+  successors []Route
+  predecessor ?Route
 }
 
-struct Routes {
-  successor []SuccessorRoute
-  finger []FingerRoute
-}
-
-struct SuccessorRoute {
-  id RingPositional
-  comm Communicatable
-}
-
-struct FingerRoute {
-  id RingPositional
+struct Route {
+  id ID
   comm Communicatable
 }
 
 interface Communicatable {
-  get_predecessor() RingPositional
-  check_predecessor(id RingPositional) RingPositional
+  get_predecessor() ID
+  check_predecessor(id ID) ID
 }
 
-fn bootstrap(id ID) Node {
-  return Node{}
+fn bootstrap(id ID, comm Communicatable) Node {
+  return Node{
+    id: id,
+    successors: [Route{id: id, comm: comm}],
+  }
 }
 
 fn join(id ID, comm Communicatable) {
 }
 
 fn (n Node) stablize() {
-  id := n.routes.successor[0].comm.get_predecessor()
+  id := n.successors[0].comm.get_predecessor()
   if id == n.id {
     return
   }
 
-  n.routes.successor[0].comm.check_predecessor(n.id)
+  n.successors[0].comm.check_predecessor(n.id)
 }
 

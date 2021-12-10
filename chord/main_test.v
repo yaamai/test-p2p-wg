@@ -1,31 +1,32 @@
 module chord
 
-struct TestRingPositional {
+struct TestID {
   id u8
 }
 
-fn (r TestRingPositional) is_predecessor(other TestRingPositional) bool {
-  //   13 14 15 0 1 2 3
-  //   1 is_predecessor 2 -> false
-  //   0 is_predecessor 3 -> false
-  //   3 is_predecessor 0 -> true
-  //   3 is_predecessor 15 -> true
-  assert r.id != other.id
-  if r.id > other.id {
-    return false
-  }
-  return true
+fn (i TestID) equal(other TestID) bool {
+  return i.id == other.id
 }
 
-fn (r TestRingPositional) is_successor(other TestRingPositional) bool {
-  return true
+struct TestComm {
 }
 
-fn (r TestRingPositional) equal(other TestRingPositional) bool {
-  return true
+fn (c TestComm) get_predecessor() ID {
+  return TestID{id: 0}
+}
+
+fn (c TestComm) check_predecessor(id ID) ID {
+  return TestID{id: 0}
 }
 
 fn test_bootstrap() {
-  id := TestRingPositional{id: 0}
-  bootstrap(id)
+  comm := TestComm{}
+  bootstrap(TestID{id: 0}, comm)
+}
+
+fn test_join() {
+  comm := TestComm{}
+  n1 := bootstrap(TestID{id: 0}, comm)
+
+  join(TestID{id: 1}, comm)
 }
