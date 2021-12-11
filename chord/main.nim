@@ -31,22 +31,24 @@ proc join[T](newid: T, id: T): Node[T] =
   (id: newid, successor: (successor,), predecessor: none((T,)))
 
 proc stabilize[T](self: var Node[T]) =
+  echo ">>> stabilize", self
   let pred = self.id.get_communicator().get_predecessor()
   if pred.isSome():
     let range = (fr: self.id, to: self.successor.id)
     if range.contains(pred.get().id):
       self.successor = pred.get()
   self.successor.id.get_communicator().notify(self.id)
+  echo "<<< stabilize", self
 
 proc notify[T](self: var Node[T], id: T) =
-  echo "notify", self
+  echo ">>> notify", self
   if self.predecessor.isNone():
     self.predecessor = some((id, ))
   else:
     let range = (fr: self.predecessor.get().id, to: self.id)
     if range.contains(id):
       self.predecessor = some((id, ))
-  echo "notify", self
+  echo "<<< notify", self
 
 proc find_successor[T](node: Node[T], id: T): T =
   let range = (fr: node.id, to: node.successor.id)
@@ -74,10 +76,10 @@ fn (n Node) find_successor(id ID) ID {
 
 type
   Comm[T] = tuple
-    n: ref Node[T]
+    n: Node[T]
 
 var
-  m: Table[uint8, ref Node[uint8]]
+  m: Table[uint8, Node[uint8]]
 
 proc get_communicator(id: uint8): Comm[uint8] =
   (n: m[id], )
@@ -86,7 +88,7 @@ proc is_element_of(id: uint8, f: uint8, t: uint8, fb: bool, tb: bool): bool =
   true
 
 proc find_successor(comm: Comm[uint8], id: uint8): uint8 =
-  comm.n[].find_successor(id)
+  comm.n.find_successor(id)
 
 proc get_predecessor(comm: Comm[uint8]): Option[Route[uint8]] =
   comm.n.predecessor
@@ -113,13 +115,14 @@ fn (i TestID) is_element_of(from TestID, to TestID, from_is_exclusive bool, to_i
 }
 """
 
-var n0 = bootstrap[uint8](0)
-echo n0
-m[0] = n0
-n0.stabilize()
+m[0] = bootstrap[uint8](0)
+# echo m[0]
+# m[0] = n0
+m[0].stabilize()
 
-let n2 = join[uint8](2, 0)
-echo n2
+m[2] = join[uint8](2, 0)
+# echo m[2]
+m[0].stabilize()
+m[2].stabilize()
 
-let n1 = join[uint8](1, 0)
-echo n1
+m[1] = join[uint8](1, 0)
