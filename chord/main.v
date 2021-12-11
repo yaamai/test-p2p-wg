@@ -8,7 +8,6 @@ interface Communicator {
 interface ID_ {
   is_element_of(from ID, to ID, from_is_exclusive bool, to_is_exclusive bool) bool
   get_communicator() Communicator
-  equal(other ID) bool
 }
 
 interface ID {

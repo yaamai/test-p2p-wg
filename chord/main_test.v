@@ -29,42 +29,30 @@ fn (i TestID) equal(other TestID) bool {
 }
 
 fn (i TestID) get_communicator() Communicator {
-  return TestComm{}
+  return i
 }
 
-struct TestComm {
-mut:
-  nodes map[u16]&Node
+fn (i TestID) find_successor(id ID) (ID) {
+  return i.node.find_successor(id)
 }
 
-fn (mut c TestComm) add(n Node) {
-  println('TestComm.add()')
-  if n.id is TestID {
-    c.nodes[n.id.id] = &n
-  }
-}
-
-fn (c TestComm) find_successor(id ID) (ID) {
-  if id is TestID {
-    return c.nodes[id.id].find_successor(id)
-  }
-  return TestID{id: 0}
-}
 
 fn test_bootstrap() {
-  mut comm := TestComm{}
-  node := bootstrap(TestID{id: 0})
-  comm.add(node)
-
+  mut id := TestID{id: 0}
+  node := bootstrap(id)
+  id.node = &node
+   
   node.find_closest_node(TestID{id: 0})
 }
 
 fn test_join() {
-  comm := TestComm{}
-  n1 := bootstrap(TestID{id: 0})
-  println(n1)
+  mut id0 := TestID{id: 0}
+  n0 := bootstrap(id0)
+  id0.node = &n0
+  println(n0)
 
-  n2 := join(TestID{id: 1})
-  println(n2)
+  mut id1 := TestID{id: 1}
+  n1 := join(id1)
+  println(n1)
 
 }
