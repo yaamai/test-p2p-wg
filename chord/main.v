@@ -3,6 +3,7 @@ module chord
 // BUG: W.A. for recursive interface argument
 interface ID_ {
   is_element_of(from ID, to ID, from_is_exclusive bool, to_is_exclusive bool) bool
+  equal(other ID) bool
 }
 
 interface ID {
@@ -41,6 +42,7 @@ struct Route {
 }
 
 interface Communicatable {
+  find_successor(id ID) (ID, Communicatable)
   get_predecessor() ID
   check_predecessor(id ID) ID
 }
@@ -53,9 +55,10 @@ fn bootstrap(id ID, comm Communicatable) Node {
 }
 
 fn join(id ID, comm Communicatable) Node {
+  successor, successor_comm := comm.find_successor(id)
   return Node{
     id: id,
-    successors: [Route{id: id, comm: comm}],
+    successors: [Route{id: successor, comm: successor_comm}],
   }
 }
 
