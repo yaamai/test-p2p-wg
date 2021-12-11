@@ -26,8 +26,9 @@ fn (n Node) find_successor(id ID) ID {
   if id.is_element_of(n.id, n.successors[0].id, true, false) {
     return n.successors[0].id
   } else {
-    // n0 := closest_preceding_node(id)
-    return n.id
+    n1 := n.find_closest_node(id)
+    comm := n1.get_communicator()
+    return comm.find_successor(id)
   }
 }
 
