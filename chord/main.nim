@@ -76,13 +76,13 @@ fn (n Node) find_successor(id ID) ID {
 
 type
   Comm[T] = tuple
-    n: Node[T]
+    n: ref Node[T]
 
 var
   m: Table[uint8, Node[uint8]]
 
 proc get_communicator(id: uint8): Comm[uint8] =
-  (n: m[id], )
+  (n: (ref Node[uint8])(m[id]), )
 
 proc is_element_of(id: uint8, f: uint8, t: uint8, fb: bool, tb: bool): bool = 
   true
