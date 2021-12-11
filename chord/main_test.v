@@ -4,11 +4,28 @@ struct TestID {
   id u8
 }
 
+fn (i TestID) is_element_of(from TestID, to TestID, from_is_exclusive bool, to_is_exclusive bool) bool {
+  if from_is_exclusive {
+    if to_is_exclusive {
+      return from.id < i.id && i.id < to.id
+    } else {
+      return from.id < i.id && i.id <= to.id
+    }
+  } else {
+    if to_is_exclusive {
+      return from.id <= i.id && i.id < to.id
+    } else {
+      return from.id <= i.id && i.id <= to.id
+    }
+  }
+}
+
 fn (i TestID) equal(other TestID) bool {
   return i.id == other.id
 }
 
 struct TestComm {
+  a u8
 }
 
 fn (c TestComm) get_predecessor() ID {
@@ -27,6 +44,9 @@ fn test_bootstrap() {
 fn test_join() {
   comm := TestComm{}
   n1 := bootstrap(TestID{id: 0}, comm)
+  println(n1)
 
-  join(TestID{id: 1}, comm)
+  n2 := join(TestID{id: 1}, comm)
+  println(n2)
+
 }
