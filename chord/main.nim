@@ -1,23 +1,10 @@
 import std/tables
+import std/options
 
 type
-  Route[T] = tuple
-    id: T
-    
-  Node[T] = tuple
-    id: T
-    successor: Route[T]
-
   RingRange[T] = tuple
     fr: T
     to: T
-
-proc bootstrap[T](id: T): Node[T] =
-  (id: id, successor: (id, ))
-
-proc join[T](newid: T, id: T): Node[T] =
-  let successor = id.get_communicator().find_successor(newid)
-  (id: newid, successor: (successor,))
 
 proc contains[T](range: RingRange[T], value: T): bool =
   if range.fr == range.to:
@@ -26,6 +13,40 @@ proc contains[T](range: RingRange[T], value: T): bool =
     return range.fr < value and value < range.to
   else:
     return range.fr < value or value < range.to
+
+type
+  Route[T] = tuple
+    id: T
+    
+  Node[T] = tuple
+    id: T
+    successor: Route[T]
+    predecessor: Option[Route[T]]
+
+proc bootstrap[T](id: T): Node[T] =
+  (id: id, successor: (id, ), predecessor: none((T,)))
+
+proc join[T](newid: T, id: T): Node[T] =
+  let successor = id.get_communicator().find_successor(newid)
+  (id: newid, successor: (successor,), predecessor: none((T,)))
+
+proc stabilize[T](self: var Node[T]) =
+  let pred = self.id.get_communicator().get_predecessor()
+  if pred.isSome():
+    let range = (fr: self.id, to: self.successor.id)
+    if range.contains(pred.get().id):
+      self.successor = pred.get()
+  self.successor.id.get_communicator().notify(self.id)
+
+proc notify[T](self: var Node[T], id: T) =
+  echo "notify", self
+  if self.predecessor.isNone():
+    self.predecessor = some((id, ))
+  else:
+    let range = (fr: self.predecessor.get().id, to: self.id)
+    if range.contains(id):
+      self.predecessor = some((id, ))
+  echo "notify", self
 
 proc find_successor[T](node: Node[T], id: T): T =
   let range = (fr: node.id, to: node.successor.id)
@@ -53,10 +74,10 @@ fn (n Node) find_successor(id ID) ID {
 
 type
   Comm[T] = tuple
-    n: Node[T]
+    n: ref Node[T]
 
 var
-  m: Table[uint8, Node[uint8]]
+  m: Table[uint8, ref Node[uint8]]
 
 proc get_communicator(id: uint8): Comm[uint8] =
   (n: m[id], )
@@ -65,7 +86,14 @@ proc is_element_of(id: uint8, f: uint8, t: uint8, fb: bool, tb: bool): bool =
   true
 
 proc find_successor(comm: Comm[uint8], id: uint8): uint8 =
-  comm.n.find_successor(id)
+  comm.n[].find_successor(id)
+
+proc get_predecessor(comm: Comm[uint8]): Option[Route[uint8]] =
+  comm.n.predecessor
+
+proc notify(comm: Comm[uint8], id: uint8) =
+  var n = comm.n
+  n.notify(id)
 
 discard """
 fn (i TestID) is_element_of(from TestID, to TestID, from_is_exclusive bool, to_is_exclusive bool) bool {
@@ -85,9 +113,10 @@ fn (i TestID) is_element_of(from TestID, to TestID, from_is_exclusive bool, to_i
 }
 """
 
-let n0 = bootstrap[uint8](0)
+var n0 = bootstrap[uint8](0)
 echo n0
 m[0] = n0
+n0.stabilize()
 
 let n2 = join[uint8](2, 0)
 echo n2
