@@ -1,8 +1,13 @@
 module chord
 
+interface Communicator {
+  find_successor(id ID) (ID)
+}
+
 // BUG: W.A. for recursive interface argument
 interface ID_ {
   is_element_of(from ID, to ID, from_is_exclusive bool, to_is_exclusive bool) bool
+  get_communicator() Communicator
   equal(other ID) bool
 }
 
@@ -38,7 +43,6 @@ fn (n Node) find_closest_node(id ID) ID {
 
 struct Route {
   id ID
-  comm Communicatable
 }
 
 interface Communicatable {
@@ -47,18 +51,20 @@ interface Communicatable {
   check_predecessor(id ID) ID
 }
 
-fn bootstrap(id ID, comm Communicatable) Node {
+fn bootstrap(id ID) Node {
   return Node{
     id: id,
-    successors: [Route{id: id, comm: comm}],
+    successors: [Route{id: id}],
   }
 }
 
-fn join(id ID, comm Communicatable) Node {
-  successor, successor_comm := comm.find_successor(id)
+fn join(id ID) Node {
+  comm := id.get_communicator()
+  successor := comm.find_successor(id)
+
   return Node{
     id: id,
-    successors: [Route{id: successor, comm: successor_comm}],
+    successors: [Route{id: successor}],
   }
 }
 
