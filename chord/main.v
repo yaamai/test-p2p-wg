@@ -18,11 +18,12 @@ interface ID {
 
 struct Empty {}
 type RouteOrEmpty = Route | Empty
+
 struct Node {
   id ID
 mut:
   successors []Route
-  predecessor RouteOrEmpty
+  predecessor ?Route
   fingers []Route
 }
 
@@ -50,6 +51,16 @@ fn (n Node) find_closest_node(id ID) ID {
 }
 
 fn (n Node) notify(id ID) {
+  println("notify() ${id}")
+/*
+  predecessor := match n.predecessor {
+  }
+  
+  if id.is_element_of(n.predecessor
+  if n.predecessor
+n.predecessor is nil or n'∈(predecessor, n) then
+        predecessor := n'
+*/
 }
 
 struct Route {
@@ -80,7 +91,9 @@ fn join(newid ID, id ID) Node {
 }
 
 fn (mut n Node) stabilize() {
+  println("stabilize()")
   if pred := n.successors[0].id.get_communicator().get_predecessor() {
+
     if pred.is_element_of(n.id, n.successors[0].id, true, true) {
       n.successors[0] = Route{id: pred}
     }
