@@ -1,7 +1,9 @@
 module chord
 
 interface Communicator {
-  find_successor(id ID) (ID)
+  find_successor(id ID) ID
+  get_predecessor() ?ID
+  notify(id ID)
 }
 
 // BUG: W.A. for recursive interface argument
@@ -14,10 +16,13 @@ interface ID {
   ID_
 }
 
+struct Empty {}
+type RouteOrEmpty = Route | Empty
 struct Node {
   id ID
+mut:
   successors []Route
-  // predecessor Route
+  predecessor RouteOrEmpty
   fingers []Route
 }
 
@@ -42,6 +47,9 @@ fn (n Node) find_closest_node(id ID) ID {
     }
   }
   return n.id
+}
+
+fn (n Node) notify(id ID) {
 }
 
 struct Route {
@@ -71,14 +79,12 @@ fn join(newid ID, id ID) Node {
   }
 }
 
-fn (n Node) stablize() {
-/*
-  id := n.successors[0].comm.get_predecessor()
-  if id == n.id {
-    return
+fn (mut n Node) stabilize() {
+  if pred := n.successors[0].id.get_communicator().get_predecessor() {
+    if pred.is_element_of(n.id, n.successors[0].id, true, true) {
+      n.successors[0] = Route{id: pred}
+    }
   }
-
-  n.successors[0].comm.check_predecessor(n.id)
-*/
+  n.successors[0].id.get_communicator().notify(n.id)
 }
 

@@ -40,6 +40,17 @@ fn (i TestID) find_successor(id ID) (ID) {
   return i.node.find_successor(id)
 }
 
+fn (i TestID) get_predecessor() ?ID {
+  match i.node.predecessor {
+    Empty { return none }
+    Route { return i.node.predecessor.id }
+  }
+}
+
+fn (i TestID) notify(id ID) {
+  i.node.notify(id)
+}
+
 
 fn test_bootstrap() {
   mut id := TestID{id: 0}
@@ -51,12 +62,14 @@ fn test_bootstrap() {
 
 fn test_join() {
   mut id0 := TestID{id: 0}
-  n0 := bootstrap(id0)
+  mut n0 := bootstrap(id0)
   id0.node = &n0
   println(n0)
 
   mut id1 := TestID{id: 1}
-  n1 := join(id1, id0)
+  mut n1 := join(id1, id0)
   println(n1)
 
+  n0.stabilize()
+  n1.stabilize()
 }
