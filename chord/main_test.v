@@ -24,6 +24,10 @@ fn (i TestID) is_element_of(from TestID, to TestID, from_is_exclusive bool, to_i
   }
 }
 
+fn (i TestID) str() string {
+  return "TestID(${i.id})"
+}
+
 fn (i TestID) equal(other TestID) bool {
   return i.id == other.id
 }
@@ -52,7 +56,7 @@ fn test_join() {
   println(n0)
 
   mut id1 := TestID{id: 1}
-  n1 := join(id1)
+  n1 := join(id1, id0)
   println(n1)
 
 }

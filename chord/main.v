@@ -24,17 +24,20 @@ struct Node {
 fn (n Node) find_successor(id ID) ID {
   if id.is_element_of(n.id, n.successors[0].id, true, false) {
     return n.successors[0].id
-  } else {
-    n1 := n.find_closest_node(id)
-    comm := n1.get_communicator()
-    return comm.find_successor(id)
   }
+
+  n1 := n.find_closest_node(id)
+  if n1 == n.id {
+    return n.id
+  }
+  comm := n1.get_communicator()
+  return comm.find_successor(id)
 }
 
 fn (n Node) find_closest_node(id ID) ID {
   for f in n.fingers {
     // check f.id ∈ (n.id, id)
-    if f.id.is_element_of(n.id, id, false, false) {
+    if f.id.is_element_of(n.id, id, true, true) {
       return f.id
     }
   }
@@ -58,12 +61,12 @@ fn bootstrap(id ID) Node {
   }
 }
 
-fn join(id ID) Node {
+fn join(newid ID, id ID) Node {
   comm := id.get_communicator()
-  successor := comm.find_successor(id)
+  successor := comm.find_successor(newid)
 
   return Node{
-    id: id,
+    id: newid,
     successors: [Route{id: successor}],
   }
 }
