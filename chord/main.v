@@ -10,14 +10,14 @@ interface ID {
   ID_
 }
 
-struct Node<T> {
-  id T
-  successors []Route<T>
+struct Node {
+  id ID
+  successors []Route
   // predecessor Route
-  fingers []Route<T>
+  fingers []Route
 }
 
-fn (n Node<T>) find_successor(id T) T {
+fn (n Node) find_successor(id ID) ID {
   if id.is_element_of(n.id, n.successors[0].id, true, false) {
     return n.successors[0].id
   } else {
@@ -26,7 +26,7 @@ fn (n Node<T>) find_successor(id T) T {
   }
 }
 
-fn (n Node<T>) find_closest_node(id T) T {
+fn (n Node) find_closest_node(id ID) ID {
   for f in n.fingers {
     // check f.id ∈ (n.id, id)
     if f.id.is_element_of(n.id, id, false, false) {
@@ -36,26 +36,40 @@ fn (n Node<T>) find_closest_node(id T) T {
   return n.id
 }
 
-struct Route<T> {
-  id T
+struct Route {
+  id ID
   comm Communicatable
 }
 
-interface Communicatable<T> {
-  find_successor(id T) (T, Communicatable)
+interface Communicatable {
+  find_successor(id ID) (ID, Communicatable)
+  get_predecessor() ID
+  check_predecessor(id ID) ID
 }
 
-fn bootstrap<T>(id T, comm Communicatable) Node<T> {
-  return Node<T>{
+fn bootstrap(id ID, comm Communicatable) Node {
+  return Node{
     id: id,
-    successors: [Route<T>{id: id, comm: comm}],
+    successors: [Route{id: id, comm: comm}],
   }
 }
 
-fn join<T>(id T, comm Communicatable) Node<T> {
+fn join(id ID, comm Communicatable) Node {
   successor, successor_comm := comm.find_successor(id)
-  return Node<T> {
+  return Node{
     id: id,
-    successors: [Route<T>{id: successor, comm: successor_comm}],
+    successors: [Route{id: successor, comm: successor_comm}],
   }
 }
+
+fn (n Node) stablize() {
+/*
+  id := n.successors[0].comm.get_predecessor()
+  if id == n.id {
+    return
+  }
+
+  n.successors[0].comm.check_predecessor(n.id)
+*/
+}
+
