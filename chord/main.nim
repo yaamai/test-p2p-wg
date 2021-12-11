@@ -1,20 +1,28 @@
 # a
 
 type
-  Route[T, S] = tuple
+  Route[T] = tuple
     id: T
-    meta: S
     
-  Node[T, S] = tuple
+  Node[T] = tuple
     id: T
-    successor: Route[T, S]
+    successor: Route[T]
 
-proc bootstrap*[T, S](id: T, meta: S): Node[T, S] =
-  (id: id, successor: (id, meta))
+proc bootstrap[T](id: T): Node[T] =
+  (id: id, successor: (id, ))
 
-type
-  MyID = uint8
+proc join[T](newid: T, id: T): Node[T] =
+  let successor = id.get_communicator().find_successor()
+  (id: newid, successor: (successor,))
 
-let n = bootstrap(0, 0)
-echo "a"
-echo n
+proc get_communicator(id: uint8): uint8 =
+  0
+
+proc find_successor(id: uint8): uint8 =
+  0
+
+let n0 = bootstrap[uint8](0)
+echo n0
+
+let n1 = join[uint8](1, 0)
+echo n1
