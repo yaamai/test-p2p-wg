@@ -11,26 +11,25 @@ typedef struct {
   char             attrbuf[512];
 } ifaddrmsg_req;
 
-int create_ifaddrmsg_req(ifaddrmsg_req* req) {
+int create_ifaddrmsg_req(ifaddrmsg_req* req, unsigned short type, int ifindex, unsigned char family, unsigned char* addr, unsigned char addrlen, unsigned char prefix) {
   struct rtattr *rta;
-  unsigned char data[8] = "aaaaaaaa";
 
   memset(req, 0, sizeof(*req));
   req->nh.nlmsg_len = NLMSG_LENGTH(sizeof(req->msg));
-  req->nh.nlmsg_type = RTM_NEWADDR;
+  req->nh.nlmsg_type = type;
   req->nh.nlmsg_flags = NLM_F_CREATE | NLM_F_EXCL | NLM_F_REQUEST;
 
-  req->msg.ifa_family = AF_INET;
-  req->msg.ifa_prefixlen = 32;
+  req->msg.ifa_family = family;
+  req->msg.ifa_prefixlen = prefix;
   req->msg.ifa_flags = 0;
   req->msg.ifa_scope = 0;
-  req->msg.ifa_index = 1;
+  req->msg.ifa_index = ifindex;
 
   rta = (struct rtattr *)(((char *)req) + NLMSG_ALIGN(req->nh.nlmsg_len));
   rta->rta_type = IFA_LOCAL;
-  rta->rta_len = RTA_LENGTH(sizeof(data));
-  req->nh.nlmsg_len = NLMSG_ALIGN(req->nh.nlmsg_len) + RTA_LENGTH(sizeof(data));
-  memcpy(RTA_DATA(rta), &data, sizeof(data));
+  rta->rta_len = RTA_LENGTH(addrlen);
+  req->nh.nlmsg_len = NLMSG_ALIGN(req->nh.nlmsg_len) + RTA_LENGTH(addrlen);
+  memcpy(RTA_DATA(rta), addr, addrlen);
 }
 
 typedef struct {
@@ -109,7 +108,8 @@ int main() {
     return rc;
   }
 
-  create_ifaddrmsg_req(&req);
+  create_ifaddrmsg_req(&req, RTM_NEWADDR, 1, AF_INET, "bbbb", 4, 28);
+
   rc = send_request(&ctx, &req);
   printf("rc: %d\n", rc);
   rc = recv_response(&ctx);
