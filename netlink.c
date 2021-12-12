@@ -58,44 +58,41 @@ int prepare_socket(context* ctx) {
   return 0;
 }
 
-int send_request(context* ctx, ifaddrmsg_req* req) {
+int recv_response(context* ctx) {
   // 8192 to avoid message truncation on platforms with page size > 4096
   struct nlmsghdr resp[8192/sizeof(struct nlmsghdr)];
   struct nlmsghdr* nh;
   struct nlmsgerr* err;
-
   int len = -1;
-  req->nh.nlmsg_seq = ctx->sequence_number;
-  req->nh.nlmsg_flags |= NLM_F_ACK;
-  ctx->sequence_number++;
-  len = send(ctx->fd, req, req->nh.nlmsg_len, 0);
-  if (len < 0) {
-    return len;
-  }
 
-  printf("sizeof: %d\n", sizeof(resp));
   len = recv(ctx->fd, &resp, sizeof(resp), 0);
   if (len < 0) {
     return len;
   }
-  printf("recv: %d\n", len);
 
   for (nh = (struct nlmsghdr *) resp; NLMSG_OK (nh, len); nh = NLMSG_NEXT (nh, len)) {
-    printf("resp: %d, nlmsg_type: %d, nlmsg_seq: %d, nlmsg_len: %d, nlmsg_flags: %d\n", len, nh->nlmsg_type, nh->nlmsg_seq, nh->nlmsg_len, nh->nlmsg_flags);
+    // printf("resp: %d, nlmsg_type: %d, nlmsg_seq: %d, nlmsg_len: %d, nlmsg_flags: %d\n", len, nh->nlmsg_type, nh->nlmsg_seq, nh->nlmsg_len, nh->nlmsg_flags);
+    if (nh->nlmsg_seq != ctx->sequence_number) {
+      continue;
+    }
+    ctx->sequence_number = nh->nlmsg_seq++;
 
     if (nh->nlmsg_type == NLMSG_DONE) {
       return 0;
     }
     if (nh->nlmsg_type == NLMSG_ERROR) {
       err = (struct nlmsgerr*)(((char*)nh)+NLMSG_HDRLEN);
-      printf("err: %d\n", err->error);
       return err->error;
     }
   }
-  // printf("seq: %d\n", ctx->sequence_number-1);
-  // printf("resp: %d, nlmsg_type: %d, nlmsg_seq: %d, nlmsg_len: %d\n", len, nh.nlmsg_type, nh.nlmsg_seq, nh.nlmsg_len);
+  return -1;
+}
 
-  return 0;
+int send_request(context* ctx, ifaddrmsg_req* req) {
+  int len = -1;
+  req->nh.nlmsg_seq = ctx->sequence_number;
+  req->nh.nlmsg_flags |= NLM_F_ACK;
+  return send(ctx->fd, req, req->nh.nlmsg_len, 0);
 }
 
 int close_socket(context* ctx) {
@@ -114,6 +111,8 @@ int main() {
 
   create_ifaddrmsg_req(&req);
   rc = send_request(&ctx, &req);
+  printf("rc: %d\n", rc);
+  rc = recv_response(&ctx);
   printf("rc: %d\n", rc);
 
   close_socket(&ctx);
