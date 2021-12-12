@@ -1,3 +1,101 @@
+#include <string.h>
+#include <sys/socket.h>
+#include <linux/netlink.h>
+#include <linux/rtnetlink.h>
+
+int main() {
+  int fd = 0;
+  struct sockaddr_nl local;
+  int sequence_number = 0;
+
+  fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
+  if (fd < 0) {
+    return -1;
+  }
+
+  memset(&local, 0, sizeof(local));
+  local.nl_family = AF_NETLINK;
+  local.nl_groups = 0;
+  if (bind(fd, (struct sockaddr*)&local, sizeof(local)) < 0) {
+    return -1;
+  }
+
+    addattr_l(&req.n, sizeof(req), IFA_LOCAL, &lcl.data, lcl.bytelen);
+    int addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data, int alen)
+
+    int len = RTA_LENGTH(alen);
+    struct rtattr *rta;
+
+    if (NLMSG_ALIGN(n->nlmsg_len) + len > maxlen)
+        return -1;
+    rta = (struct rtattr*)(((char*)n) + NLMSG_ALIGN(n->nlmsg_len));
+    rta->rta_type = type;
+    rta->rta_len = len;
+    memcpy(RTA_DATA(rta), data, alen);
+    n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + len;
+
+  {
+    int status = 0;
+    struct ifaddrmsg ifa = {
+      AF_INET,
+      32,
+      1,
+      0,
+      1
+    };
+    struct nlmsghdr nh = {
+      NLMSG_LENGTH(sizeof(struct ifaddrmsg)),
+      RTM_NEWADDR,
+      NLM_F_CREATE | NLM_F_EXCL | NLM_F_REQUEST
+    };
+    struct sockaddr_nl sa;
+    struct iovec iov = { &nh, nh.nlmsg_len };
+
+    struct msghdr msg = { &sa, sizeof(sa), &iov, 1, NULL, 0, 0 };
+    memset(&sa, 0, sizeof(sa));
+    sa.nl_family = AF_NETLINK;
+    nh.nlmsg_pid = 0;
+    nh.nlmsg_seq = ++sequence_number;
+    nh.nlmsg_flags |= NLM_F_ACK;
+
+    status = sendmsg(fd, &msg, 0);
+    return status;
+  }
+
+/*
+int rtnl_talk(struct rtnl_handle *rtnl, struct nlmsghdr *n, pid_t peer,
+        unsigned groups, struct nlmsghdr *answer)
+  {
+    struct msghdr msg = { (void*)&nladdr, sizeof(nladdr), &iov, 1, NULL, 0, 0 };
+
+    int status;
+    struct nlmsghdr *h;
+    struct sockaddr_nl nladdr;
+    // Forming the iovector with the netlink packet.
+    struct iovec iov = { (void*)n, n->nlmsg_len };
+    char buf[8192];
+    // Forming the message to be sent.
+    struct msghdr msg = { (void*)&nladdr, sizeof(nladdr), &iov, 1, NULL, 0, 0 };
+    // Filling up the details of the netlink socket to be contacted in the
+    // kernel.
+    memset(&nladdr, 0, sizeof(nladdr));
+    nladdr.nl_family = AF_NETLINK;
+    nladdr.nl_pid = peer;
+    nladdr.nl_groups = groups;
+    n->nlmsg_seq = ++rtnl->seq;
+    if (answer == NULL)
+        n->nlmsg_flags |= NLM_F_ACK;
+    // Actual sending of the message, status contains success/failure
+    status = sendmsg(rtnl->fd, &msg, 0);
+    if (status < 0)
+        return -1;
+  }
+*/
+
+  return 0;
+}
+
+/*
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -31,9 +129,9 @@ typedef struct
     __u32 data[8];
 } inet_prefix;
 
-/* This uses a non-standard parsing (ie not inet_aton, or inet_pton)
- * because of legacy choice to parse 10.8 as 10.8.0.0 not 10.0.0.8
- */
+// This uses a non-standard parsing (ie not inet_aton, or inet_pton)
+// because of legacy choice to parse 10.8 as 10.8.0.0 not 10.0.0.8
+
 static int get_addr_ipv4(__u8 *ap, const char *cp)
 {
     int i;
@@ -44,9 +142,9 @@ static int get_addr_ipv4(__u8 *ap, const char *cp)
 
         n = strtoul(cp, &endp, 0);
         if (n > 255)
-            return -1;      /* bogus network value */
+            return -1;      // bogus network value
 
-        if (endp == cp) /* no digits */
+        if (endp == cp) // no digits
             return -1;
 
         ap[i] = n;
@@ -55,7 +153,7 @@ static int get_addr_ipv4(__u8 *ap, const char *cp)
             break;
 
         if (i == 3 || *endp != '.')
-            return -1;      /* extra characters */
+            return -1;      // extra characters
         cp = endp + 1;
     }
 
@@ -269,3 +367,4 @@ int main(int argc, char **argv)
     char * ip = "1.2.3.4";
     return add_IP_Address(ip,rth);
 }
+*/
