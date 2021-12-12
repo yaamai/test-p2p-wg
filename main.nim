@@ -1,6 +1,7 @@
 import std/tables
 import std/options
 import chord
+import wireguard
 
 ####################################################################
 
@@ -48,16 +49,20 @@ echo m[1][]
 echo m[2][]
 
 
-{.compile: "wireguard.c".}
-type wg_device {.header: "wireguard.h", importc: "wg_device"} = object
-proc wg_add_device(device_name: cstring): cint {.header: "wireguard.h", importc: "wg_add_device"}
-proc wg_del_device(device_name: cstring): cint {.header: "wireguard.h", importc: "wg_del_device"}
-proc wg_get_device(device: ptr ptr wg_device, device_name: cstring): cint {.header: "wireguard.h", importc: "wg_get_device"}
-
 let rc = wg_add_device("testwg0")
 echo rc
 
-var dev = cast[ptr wg_device](wg_device())
-let rc2 = wg_get_device(addr dev, "testwg0")
+var dev = wg_device()
+var devaddr = addr dev
+let rc2 = wg_get_device(addr devaddr, "testwg0")
 echo rc2
-echo dev[]
+echo devaddr[]
+
+var privateKey: wg_key
+wg_generate_private_key(privateKey)
+echo privateKey
+
+devaddr.flags = WGDEVICE_HAS_PRIVATE_KEY
+devaddr.private_key = privateKey
+let rc3 = wg_set_device(devaddr)
+echo rc3
