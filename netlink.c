@@ -20,6 +20,33 @@ int main() {
     return -1;
   }
 
+
+  int status = 0;
+  struct {
+    struct nlmsghdr  nh;
+    struct ifinfomsg msg;
+    char             attrbuf[512];
+  } req;
+
+  struct rtattr *rta;
+  unsigned int mtu = 65536;
+
+  memset(&req, 0, sizeof(req));
+  req.nh.nlmsg_len = NLMSG_LENGTH(sizeof(req.msg));
+  req.nh.nlmsg_flags = NLM_F_REQUEST;
+  req.nh.nlmsg_type = RTM_NEWLINK;
+  req.msg.ifi_family = AF_UNSPEC;
+  req.msg.ifi_index = 1;
+  req.msg.ifi_change = 0xffffffff;
+  rta = (struct rtattr *)(((char *) &req) + NLMSG_ALIGN(req.nh.nlmsg_len));
+  rta->rta_type = IFLA_MTU;
+  rta->rta_len = RTA_LENGTH(sizeof(mtu));
+  req.nh.nlmsg_len = NLMSG_ALIGN(req.nh.nlmsg_len) + RTA_LENGTH(sizeof(mtu));
+  memcpy(RTA_DATA(rta), &mtu, sizeof(mtu));
+  status = send(fd, &req, req.nh.nlmsg_len, 0);
+  printf("%d\n", status);
+
+/*
     addattr_l(&req.n, sizeof(req), IFA_LOCAL, &lcl.data, lcl.bytelen);
     int addattr_l(struct nlmsghdr *n, int maxlen, int type, void *data, int alen)
 
@@ -35,7 +62,6 @@ int main() {
     n->nlmsg_len = NLMSG_ALIGN(n->nlmsg_len) + len;
 
   {
-    int status = 0;
     struct ifaddrmsg ifa = {
       AF_INET,
       32,
@@ -62,7 +88,6 @@ int main() {
     return status;
   }
 
-/*
 int rtnl_talk(struct rtnl_handle *rtnl, struct nlmsghdr *n, pid_t peer,
         unsigned groups, struct nlmsghdr *answer)
   {
