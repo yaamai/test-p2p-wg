@@ -46,3 +46,18 @@ echo "---"
 echo m[0][]
 echo m[1][]
 echo m[2][]
+
+
+{.compile: "wireguard.c".}
+type wg_device {.header: "wireguard.h", importc: "wg_device"} = object
+proc wg_add_device(device_name: cstring): cint {.header: "wireguard.h", importc: "wg_add_device"}
+proc wg_del_device(device_name: cstring): cint {.header: "wireguard.h", importc: "wg_del_device"}
+proc wg_get_device(device: ptr ptr wg_device, device_name: cstring): cint {.header: "wireguard.h", importc: "wg_get_device"}
+
+let rc = wg_add_device("testwg0")
+echo rc
+
+var dev = cast[ptr wg_device](wg_device())
+let rc2 = wg_get_device(addr dev, "testwg0")
+echo rc2
+echo dev[]
