@@ -2,9 +2,37 @@
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
+#include <linux/if.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
+typedef struct {
+  struct nlmsghdr  nh;
+  struct ifinfomsg msg;
+  char             attrbuf[512];
+} ifinfomsg_req;
+
+// sendmsg(3, {msg_name={sa_family=AF_NETLINK, nl_pid=0, nl_groups=00000000}, msg_namelen=12, msg_iov=[{iov_base=[{nlmsg_len=32, nlmsg_type=RTM_NEWLINK, nlmsg_flags=NLM_F_REQUEST|NLM_F_ACK, nlmsg_seq=1639343443, nlmsg_pid=0}, {ifi_family=AF_UNSPEC, ifi_type=ARPHRD_NETROM, ifi_index=if_nametoindex("testwg0"), ifi_flags=IFF_UP, ifi_change=0x1}], iov_len=32}], msg_iovlen=1, msg_controllen=0, msg_flags=0}, 0) = 32
+
+int create_ifinfomsg_req(ifinfomsg_req* req, unsigned short type, int ifindex, unsigned int flags) {
+  struct rtattr *rta;
+
+  memset(req, 0, sizeof(*req));
+  req->nh.nlmsg_len = NLMSG_LENGTH(sizeof(req->msg));
+  req->nh.nlmsg_type = type;
+  req->nh.nlmsg_flags = NLM_F_REQUEST;
+
+  req->msg.ifi_family = AF_UNSPEC;
+  req->msg.ifi_index = ifindex;
+  req->msg.ifi_flags = flags;
+  req->msg.ifi_change = 0xFFFFFFFF;
+/*
+  rta = (struct rtattr *)(((char *)req) + NLMSG_ALIGN(req->nh.nlmsg_len));
+  rta->rta_type = IFA_LOCAL;
+  rta->rta_len = 0;
+  req->nh.nlmsg_len = NLMSG_ALIGN(req->nh.nlmsg_len) + RTA_LENGTH(0);
+*/
+}
 typedef struct {
   struct nlmsghdr  nh;
   struct ifaddrmsg msg;
@@ -87,7 +115,7 @@ int recv_response(context* ctx) {
   return -1;
 }
 
-int send_request(context* ctx, ifaddrmsg_req* req) {
+int send_request(context* ctx, ifinfomsg_req* req) {
   int len = -1;
   req->nh.nlmsg_seq = ctx->sequence_number;
   req->nh.nlmsg_flags |= NLM_F_ACK;
@@ -101,14 +129,14 @@ int close_socket(context* ctx) {
 int main() {
   int rc = -1;
   context ctx;
-  ifaddrmsg_req req;
+  ifinfomsg_req req;
 
   rc = prepare_socket(&ctx);
   if (rc < 0) {
     return rc;
   }
 
-  create_ifaddrmsg_req(&req, RTM_NEWADDR, 1, AF_INET, "bbbb", 4, 28);
+  create_ifinfomsg_req(&req, RTM_NEWLINK, 4, IFF_UP);
 
   rc = send_request(&ctx, &req);
   printf("rc: %d\n", rc);
