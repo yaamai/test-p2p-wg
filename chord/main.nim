@@ -119,16 +119,15 @@ fn (i TestID) is_element_of(from TestID, to TestID, from_is_exclusive bool, to_i
 m[0] = bootstrap[uint8](0)
 # echo m[0]
 # m[0] = n0
-m[0].stabilize()
 
 m[2] = join[uint8](2, 0)
 # echo m[2]
-m[0].stabilize()
-m[0].stabilize()
-m[2].stabilize()
-m[2].stabilize()
 
 m[1] = join[uint8](1, 0)
+for i in [1,2,3,4,5]:
+  m[0].stabilize()
+  m[1].stabilize()
+  m[2].stabilize()
 
 echo "---"
 echo m[0][]
