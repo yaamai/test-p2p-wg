@@ -1,13 +1,45 @@
+#include <unistd.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/socket.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
-int main() {
-  int fd = 0;
+typedef struct {
+  struct nlmsghdr  nh;
+  struct ifaddrmsg msg;
+  char             attrbuf[512];
+} ifaddrmsg_req;
+
+int create_ifaddrmsg_req(ifaddrmsg_req* req) {
+  struct rtattr *rta;
+  unsigned char data[8] = "aaaaaaaa";
+
+  memset(req, 0, sizeof(*req));
+  req->nh.nlmsg_len = NLMSG_LENGTH(sizeof(req->msg));
+  req->nh.nlmsg_type = RTM_NEWADDR;
+  req->nh.nlmsg_flags = NLM_F_CREATE | NLM_F_EXCL | NLM_F_REQUEST;
+
+  req->msg.ifa_family = AF_INET;
+  req->msg.ifa_prefixlen = 32;
+  req->msg.ifa_flags = 0;
+  req->msg.ifa_scope = 0;
+  req->msg.ifa_index = 1;
+
+  rta = (struct rtattr *)(((char *)req) + NLMSG_ALIGN(req->nh.nlmsg_len));
+  rta->rta_type = IFA_LOCAL;
+  rta->rta_len = RTA_LENGTH(sizeof(data));
+  req->nh.nlmsg_len = NLMSG_ALIGN(req->nh.nlmsg_len) + RTA_LENGTH(sizeof(data));
+  memcpy(RTA_DATA(rta), &data, sizeof(data));
+}
+
+typedef struct {
+  int fd;
+} context;
+
+int prepare_socket(context* ctx) {
+  int fd = -1;
   struct sockaddr_nl local;
-  int sequence_number = 0;
 
   fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
   if (fd < 0) {
@@ -21,35 +53,31 @@ int main() {
     return -1;
   }
 
+  ctx->fd = fd;
+  return 0;
+}
 
-  int status = 0;
-  struct {
-    struct nlmsghdr  nh;
-    struct ifaddrmsg msg;
-    char             attrbuf[512];
-  } req;
+int send_request(context* ctx, ifaddrmsg_req* req) {
+  return send(ctx->fd, req, req->nh.nlmsg_len, 0);
+}
 
-  struct rtattr *rta;
-  unsigned char data[8] = "aaaaaaaa";
+int close_socket(context* ctx) {
+  return close(ctx->fd);
+}
 
-  memset(&req, 0, sizeof(req));
-  req.nh.nlmsg_len = NLMSG_LENGTH(sizeof(req.msg));
-  req.nh.nlmsg_type = RTM_NEWADDR;
-  req.nh.nlmsg_flags = NLM_F_CREATE | NLM_F_EXCL | NLM_F_REQUEST;
+int main() {
+  int rc = -1;
+  context ctx;
+  ifaddrmsg_req req;
 
-  req.msg.ifa_family = AF_INET;
-  req.msg.ifa_prefixlen = 32;
-  req.msg.ifa_flags = 0;
-  req.msg.ifa_scope = 0;
-  req.msg.ifa_index = 1;
+  rc = prepare_socket(&ctx);
+  if (rc < 0) {
+    return rc;
+  }
 
-  rta = (struct rtattr *)(((char *) &req) + NLMSG_ALIGN(req.nh.nlmsg_len));
-  rta->rta_type = IFA_LOCAL;
-  rta->rta_len = RTA_LENGTH(sizeof(data));
-  req.nh.nlmsg_len = NLMSG_ALIGN(req.nh.nlmsg_len) + RTA_LENGTH(sizeof(data));
-  memcpy(RTA_DATA(rta), &data, sizeof(data));
-  status = send(fd, &req, req.nh.nlmsg_len, 0);
-  printf("status: %d\n", status);
+  create_ifaddrmsg_req(&req);
+  rc = send_request(&ctx, &req);
+  printf("rc: %d\n", rc);
 
 /*
     addattr_l(&req.n, sizeof(req), IFA_LOCAL, &lcl.data, lcl.bytelen);
