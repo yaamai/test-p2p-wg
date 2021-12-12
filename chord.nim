@@ -25,12 +25,14 @@ type
 
 proc stabilize*[T](self: var Node[T]) =
   echo ">>> stabilize", self[]
-  let pred = self.successor.id.get_communicator().get_predecessor()
-  if pred.isSome():
-    let range = (fr: self.id, to: self.successor.id)
-    if range.contains(pred.get().id):
-      self.successor = pred.get()
-  self.successor.id.get_communicator().notify(self.id)
+  let comm = self.id.get_communicator(self.successor.id)
+  if comm.isSome():
+    let pred = comm.get().get_predecessor()
+    if pred.isSome():
+      let range = (fr: self.id, to: self.successor.id)
+      if range.contains(pred.get().id):
+        self.successor = pred.get()
+    comm.get().notify(self.id)
   echo "<<< stabilize", self[]
 
 proc notify*[T](self: Node[T], id: T) =
@@ -58,5 +60,9 @@ proc bootstrap*[T](id: T): Node[T] =
 
 proc join*[T](newid: T, id: T): Node[T] =
   mixin find_successor
-  let successor = id.get_communicator().find_successor(newid)
-  Node[T](id: newid, successor: (successor,), predecessor: none((T,)))
+  mixin get_communicator
+
+  let comm = get_communicator(newid, id)
+  if comm.isSome():
+    let successor = comm.get().find_successor(newid)
+    return Node[T](id: newid, successor: (successor,), predecessor: none((T,)))
