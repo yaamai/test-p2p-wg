@@ -52,17 +52,16 @@ echo m[2][]
 let rc = wg_add_device("testwg0")
 echo rc
 
-var dev = wg_device()
-var devaddr = addr dev
-let rc2 = wg_get_device(addr devaddr, "testwg0")
+var dev: ptr wg_device
+let rc2 = wg_get_device(addr dev, "testwg0")
 echo rc2
-echo devaddr[]
+echo dev[]
 
-var privateKey: wg_key
-wg_generate_private_key(privateKey)
-echo privateKey
-
-devaddr.flags = WGDEVICE_HAS_PRIVATE_KEY
-devaddr.private_key = privateKey
-let rc3 = wg_set_device(devaddr)
-echo rc3
+# var privateKey: wg_key
+# wg_generate_private_key(privateKey)
+# echo privateKey
+# 
+# devaddr.flags = WGDEVICE_HAS_PRIVATE_KEY
+# devaddr.private_key = privateKey
+# let rc3 = wg_set_device(devaddr)
+# echo rc3
