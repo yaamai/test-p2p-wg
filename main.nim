@@ -1,5 +1,6 @@
 import wireguard
 import netlink
+import std/net
 
 
 type
@@ -31,6 +32,9 @@ proc newWireguardDevice(config: Config): WireguardDevice =
   echo cast[cint](result.dev.flags)
 
   rc = nl_set_interface_up(result.dev.ifindex)
+  echo rc
+
+  rc = nl_add_address(result.dev.ifindex, parseIpAddress("10.163.0.1"))
   echo rc
 
 

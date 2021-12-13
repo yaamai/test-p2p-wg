@@ -1,6 +1,11 @@
+import std/net
+
 {.compile: "netlink.c".}
 
 let RTM_NEWLINK {.importc, nodecl.}: cint
+let RTM_NEWADDR {.importc, nodecl.}: cint
+let AF_INET {.importc, nodecl.}: cint
+let AF_INET6 {.importc, nodecl.}: cint
 let IFF_UP {.importc, nodecl.}: cint
 
 type
@@ -19,7 +24,7 @@ proc create_ifaddrmsg_req(
   typ: uint16,
   ifindex: cint,
   family: uint8,
-  address: cstring,
+  address: ptr UncheckedArray[uint8],
   addrlen: uint8,
   prefix: uint8
 ): cint {.importc: "create_ifaddrmsg_req"}
@@ -38,6 +43,22 @@ proc nl_set_interface_up*(ifindex: uint): int =
     ctx: context
 
   rc = create_ifinfomsg_req(addr req, cast[uint16](RTM_NEWLINK), cast[cint](ifindex), cast[uint8](IFF_UP))
+  rc = prepare_socket(addr ctx)
+  rc = send_request(addr ctx, addr req)
+  rc = close_socket(addr ctx)
+
+proc nl_add_address*(ifindex: uint, address: IpAddress): int =
+  var
+    rc: cint = 0
+    req: ifaddrmsg_req
+    ctx: context
+
+  let ifidx = cast[cint](ifindex)
+  let typ = cast[uint16](RTM_NEWADDR)
+  let family = cast[uint8](if address.family == IpAddressFamily.IPv4: AF_INET else: AF_INET6)
+  let ad = cast[ptr UncheckedArray[uint8]](unsafeAddr address.address_v4)
+  rc = create_ifaddrmsg_req(addr req, typ, ifidx, family, ad, 4, 32)
+
   rc = prepare_socket(addr ctx)
   rc = send_request(addr ctx, addr req)
   rc = close_socket(addr ctx)
