@@ -3,6 +3,9 @@ import std/options
 import chord
 import wireguard
 
+import std/asynchttpserver
+import std/asyncdispatch
+
 ####################################################################
 
 type
@@ -49,13 +52,13 @@ echo m[1][]
 echo m[2][]
 
 
-let rc = wg_add_device("testwg0")
-echo rc
-
-var dev: ptr wg_device
-let rc2 = wg_get_device(addr dev, "testwg0")
-echo rc2
-echo dev[]
+# let rc = wg_add_device("testwg0")
+# echo rc
+# 
+# var dev: ptr wg_device
+# let rc2 = wg_get_device(addr dev, "testwg0")
+# echo rc2
+# echo dev[]
 
 # var privateKey: wg_key
 # wg_generate_private_key(privateKey)
@@ -65,3 +68,22 @@ echo dev[]
 # devaddr.private_key = privateKey
 # let rc3 = wg_set_device(devaddr)
 # echo rc3
+
+proc main {.async.} =
+  var server = newAsyncHttpServer()
+  proc cb(req: Request) {.async.} =
+    echo (req.reqMethod, req.url, req.headers)
+    let headers = {"Content-type": "text/plain; charset=utf-8"}
+    await req.respond(Http200, "Hello World", headers.newHttpHeaders())
+
+  server.listen(Port(8000)) # or Port(8080) to hardcode the standard HTTP port.
+  # echo "test this with: curl localhost:" & $port.uint16 & "/"
+  while true:
+    if server.shouldAcceptRequest():
+      await server.acceptRequest(cb)
+    else:
+      # too many concurrent connections, `maxFDs` exceeded
+      # wait 500ms for FDs to be closed
+      await sleepAsync(500)
+
+waitFor main()

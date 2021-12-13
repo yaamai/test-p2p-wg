@@ -6,7 +6,7 @@
 const IFNAMSIZ = 16
 type
   in_addr {.importc: "in_addr", header: "netinet/in.h".} = object
-  in6_addr {.importc: "in_addr", header: "netinet/in.h".} = object
+  in6_addr {.importc: "in6_addr", header: "netinet/in.h".} = object
   sockaddr_in {.importc: "sockaddr_in", header: "netinet/in.h".} = object
     sin_family*: uint16
     sin_port*: uint16
