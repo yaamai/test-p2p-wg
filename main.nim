@@ -1,48 +1,92 @@
 import wireguard
 import netlink
 import std/net
-
+import std/strutils
 
 type
   Config = object
     privateKey: string
+    publicKey: string
     listenPort: uint16
-    tunnelIP: string
+    tunnelIp: string
     deviceName: string
 
+type
   WireguardDevice = object
     dev: ptr wg_device
 
 proc newWireguardDevice(config: Config): WireguardDevice =
   var rc = 0
-  result = WireguardDevice()
 
   rc = wg_add_device(config.deviceName)
-  echo rc
+  echo "wg_add_device: ", rc
   rc = wg_get_device(addr result.dev, config.deviceName)
-  echo rc
+  echo "wg_get_device: ", rc
+  echo result.dev[]
 
   result.dev.flags = {WGDEVICE_HAS_PRIVATE_KEY, WGDEVICE_HAS_LISTEN_PORT}
-  rc = wg_key_from_base64(result.dev.private_key, config.privateKey)
-  echo rc
+  rc = wg_key_from_base64(result.dev.private_key, cast[array[45, char]](config.privateKey))
+  echo "wg_key_from_base64: ", rc
+  echo config.privateKey
   echo result.dev.private_key
   result.dev.listen_port = config.listenPort
   rc = wg_set_device(result.dev)
-  echo rc
+  echo "wg_set_device: ", rc
+
   echo cast[cint](result.dev.flags)
 
-  rc = nl_set_interface_up(result.dev.ifindex)
+
+proc up(self: WireguardDevice) =
+  let rc = nl_set_interface_up(self.dev.ifindex)
   echo rc
 
-  rc = nl_add_address(result.dev.ifindex, parseIpAddress("10.163.0.1"))
+proc addAddress(self: WireguardDevice, address: string) =
+  let al = address.split("/")
+  let rc = nl_add_address(self.dev.ifindex, parseIpAddress(al[0]), parseInt(al[1]))
   echo rc
+
+proc generatePeerConfig(self: WireguardDevice): Config =
+  var
+    publicKey, privateKey: wg_key
+    publicKeyB64, privateKeyB64: wg_key_b64_string
+    rc = 0
+
+  wg_generate_private_key(privateKey)
+  wg_generate_public_key(publicKey, privateKey)
+  echo "wg_generate_private_key: ", privateKey
+  echo publicKey
+  wg_key_to_base64(publicKeyB64, publicKey)
+  wg_key_to_base64(privateKeyB64, privateKey)
+  echo cast[string](@privateKeyB64)
+  echo cast[string](@publicKeyB64)
+
+  rc = wg_get_device(unsafeAddr self.dev, cast[string](@(self.dev.name)))
+  echo rc
+
+  var peer = wg_peer(public_key: publicKey)
+  echo peer
+
+  self.dev.flags = {WGDEVICE_REPLACE_PEERS}
+  let oldLast = self.dev.last_peer
+  self.dev.last_peer = addr peer
+  self.dev.first_peer = addr peer
+
+  rc = wg_set_device(self.dev)
+  echo rc
+
+
+  Config(privateKey: cast[string](@privateKeyB64), tunnelIp: "10.163.0.2/32")
 
 
 var n0Config = Config(
-  privateKey: "2Osz87U7EtQ0RsI0lLmayOhTVTv/yHylLFo4RHYAAEA=",
+  privateKey: "CPDlnyk0H7dgYNtmIoa1AAuD8ulJ2QMITrbzQi3aoW0=",
   listenPort: 43617,
+  tunnelIp: "10.163.0.1/32",
   deviceName: "testwg0")
 var n0Device = newWireguardDevice(n0Config)
+var n1Config = n0Device.generatePeerConfig()
+n1Config.deviceName = "testwg1"
+var n1Device = newWireguardDevice(n1Config)
 
 
 #[

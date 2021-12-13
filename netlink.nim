@@ -10,7 +10,7 @@ let IFF_UP {.importc, nodecl.}: cint
 
 type
   context {.importc: "context".} = object
-  ifaddrmsg_req {.importc: "ifaddrmsg_req".} = object
+  ifaddrmsg_req {.header: "netlink.h", importc: "ifaddrmsg_req".} = object
   ifinfomsg_req {.header: "netlink.h", importc: "ifinfomsg_req".} = object
   request = ifaddrmsg_req or ifinfomsg_req
 
@@ -47,7 +47,7 @@ proc nl_set_interface_up*(ifindex: uint): int =
   rc = send_request(addr ctx, addr req)
   rc = close_socket(addr ctx)
 
-proc nl_add_address*(ifindex: uint, address: IpAddress): int =
+proc nl_add_address*(ifindex: uint, address: IpAddress, prefix: int): int =
   var
     rc: cint = 0
     req: ifaddrmsg_req
@@ -57,7 +57,8 @@ proc nl_add_address*(ifindex: uint, address: IpAddress): int =
   let typ = cast[uint16](RTM_NEWADDR)
   let family = cast[uint8](if address.family == IpAddressFamily.IPv4: AF_INET else: AF_INET6)
   let ad = cast[ptr UncheckedArray[uint8]](unsafeAddr address.address_v4)
-  rc = create_ifaddrmsg_req(addr req, typ, ifidx, family, ad, 4, 32)
+  let p = cast[uint8](prefix)
+  rc = create_ifaddrmsg_req(addr req, typ, ifidx, family, ad, 4, p)
 
   rc = prepare_socket(addr ctx)
   rc = send_request(addr ctx, addr req)

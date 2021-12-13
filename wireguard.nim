@@ -2,27 +2,13 @@
 ##
 ##  Copyright (C) 2015-2020 Jason A. Donenfeld <Jason@zx2c4.com>. All Rights Reserved.
 ##
+import std/posix
 
 const IFNAMSIZ = 16
-type
-  in_addr {.importc: "in_addr", header: "netinet/in.h".} = object
-  in6_addr {.importc: "in6_addr", header: "netinet/in.h".} = object
-  sockaddr_in {.importc: "sockaddr_in", header: "netinet/in.h".} = object
-    sin_family*: uint16
-    sin_port*: uint16
-    sin_addr*: in_addr
-    sin_zero*: array[0 .. 7, char]
-
-  sockaddr_in6 {.importc: "sockaddr_in6", header: "netinet/in.h".} = object
-    sin6_family*: uint16
-    sin6_port*: uint16
-    sin6_flowinfo*: int32
-    sin6_addr*: in6_addr
-    sin6_scope_id*: int32
 
 type
-  wg_key* = array[32, uint8]
-  wg_key_b64_string* = cstring
+  wg_key* = array[32, char]
+  wg_key_b64_string* = array[45, char]
 
 ##  Cross platform __kernel_timespec
 
@@ -32,8 +18,8 @@ type
     tv_nsec*: int64
 
   INNER_C_UNION_wireguard_33* {.bycopy, union.} = object
-    ip4*: in_addr
-    ip6*: in6_addr
+    ip4*: InAddr
+    ip6*: In6Addr
 
   wg_allowedip* {.bycopy.} = object
     family*: uint16
@@ -41,18 +27,18 @@ type
     cidr*: uint8
     next_allowedip*: ptr wg_allowedip
 
-  wg_peer_flags* = enum
-    WGPEER_REMOVE_ME = 1'u64 shl 0,
-    WGPEER_REPLACE_ALLOWEDIPS = 1'u64 shl 1,
-    WGPEER_HAS_PUBLIC_KEY = 1'u64 shl 2,
-    WGPEER_HAS_PRESHARED_KEY = 1'u64 shl 3,
-    WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL = 1'u64 shl 4
+  wg_peer_flags* {.size: sizeof(cint).} = enum
+    WGPEER_REMOVE_ME = 1,
+    WGPEER_REPLACE_ALLOWEDIPS,
+    WGPEER_HAS_PUBLIC_KEY,
+    WGPEER_HAS_PRESHARED_KEY,
+    WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL
 
 
 type
   INNER_C_UNION_wireguard_61* {.bycopy, union.} = object
-    addr4*: sockaddr_in
-    addr6*: sockaddr_in6
+    addr4*: Sockaddr_in
+    addr6*: Sockaddr_in6
 
   wg_peer* {.bycopy.} = object
     flags*: wg_peer_flags
@@ -68,7 +54,7 @@ type
     next_peer*: ptr wg_peer
 
   wg_device_flag* {.size: sizeof(cint).} = enum
-    WGDEVICE_REPLACE_PEERS,
+    WGDEVICE_REPLACE_PEERS = 1,
     WGDEVICE_HAS_PRIVATE_KEY,
     WGDEVICE_HAS_PUBLIC_KEY,
     WGDEVICE_HAS_LISTEN_PORT,
