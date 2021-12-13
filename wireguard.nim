@@ -22,7 +22,7 @@ type
 
 type
   wg_key* = array[32, uint8]
-  wg_key_b64_string* = array[((sizeof((wg_key)) + 2) div 3) * 4 + 1, char]
+  wg_key_b64_string* = cstring
 
 ##  Cross platform __kernel_timespec
 
@@ -67,12 +67,13 @@ type
     last_allowedip*: ptr wg_allowedip
     next_peer*: ptr wg_peer
 
-  wg_device_flags* = enum
-    WGDEVICE_REPLACE_PEERS = 1'u64 shl 0,
-    WGDEVICE_HAS_PRIVATE_KEY = 1'u64 shl 1,
-    WGDEVICE_HAS_PUBLIC_KEY = 1'u64 shl 2,
-    WGDEVICE_HAS_LISTEN_PORT = 1'u64 shl 3,
-    WGDEVICE_HAS_FWMARK = 1'u64 shl 4
+  wg_device_flag* {.size: sizeof(cint).} = enum
+    WGDEVICE_REPLACE_PEERS,
+    WGDEVICE_HAS_PRIVATE_KEY,
+    WGDEVICE_HAS_PUBLIC_KEY,
+    WGDEVICE_HAS_LISTEN_PORT,
+    WGDEVICE_HAS_FWMARK
+  wg_device_flags = set[wg_device_flag]
 
 
 type

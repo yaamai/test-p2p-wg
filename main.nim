@@ -1,7 +1,50 @@
+import wireguard
+import netlink
+
+
+type
+  Config = object
+    privateKey: string
+    listenPort: uint16
+    tunnelIP: string
+    deviceName: string
+
+  WireguardDevice = object
+    dev: ptr wg_device
+
+proc newWireguardDevice(config: Config): WireguardDevice =
+  var rc = 0
+  result = WireguardDevice()
+
+  rc = wg_add_device(config.deviceName)
+  echo rc
+  rc = wg_get_device(addr result.dev, config.deviceName)
+  echo rc
+
+  result.dev.flags = {WGDEVICE_HAS_PRIVATE_KEY, WGDEVICE_HAS_LISTEN_PORT}
+  rc = wg_key_from_base64(result.dev.private_key, config.privateKey)
+  echo rc
+  echo result.dev.private_key
+  result.dev.listen_port = config.listenPort
+  rc = wg_set_device(result.dev)
+  echo rc
+  echo cast[cint](result.dev.flags)
+
+  rc = nl_set_interface_up(result.dev.ifindex)
+  echo rc
+
+
+var n0Config = Config(
+  privateKey: "2Osz87U7EtQ0RsI0lLmayOhTVTv/yHylLFo4RHYAAEA=",
+  listenPort: 43617,
+  deviceName: "testwg0")
+var n0Device = newWireguardDevice(n0Config)
+
+
+#[
 import std/tables
 import std/options
 import chord
-import wireguard
 
 import std/asynchttpserver
 import std/asyncdispatch
@@ -87,3 +130,4 @@ proc main {.async.} =
       await sleepAsync(500)
 
 waitFor main()
+]#

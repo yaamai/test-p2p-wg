@@ -1,16 +1,6 @@
-#include <unistd.h>
-#include <stdio.h>
-#include <string.h>
-#include <sys/socket.h>
-#include <linux/if.h>
-#include <linux/netlink.h>
-#include <linux/rtnetlink.h>
-
-typedef struct {
-  struct nlmsghdr  nh;
-  struct ifinfomsg msg;
-  char             attrbuf[512];
-} ifinfomsg_req;
+#ifndef NETLINK_H
+#define NETLINK_H
+#include "netlink.h"
 
 // sendmsg(3, {msg_name={sa_family=AF_NETLINK, nl_pid=0, nl_groups=00000000}, msg_namelen=12, msg_iov=[{iov_base=[{nlmsg_len=32, nlmsg_type=RTM_NEWLINK, nlmsg_flags=NLM_F_REQUEST|NLM_F_ACK, nlmsg_seq=1639343443, nlmsg_pid=0}, {ifi_family=AF_UNSPEC, ifi_type=ARPHRD_NETROM, ifi_index=if_nametoindex("testwg0"), ifi_flags=IFF_UP, ifi_change=0x1}], iov_len=32}], msg_iovlen=1, msg_controllen=0, msg_flags=0}, 0) = 32
 
@@ -33,11 +23,6 @@ int create_ifinfomsg_req(ifinfomsg_req* req, unsigned short type, int ifindex, u
   req->nh.nlmsg_len = NLMSG_ALIGN(req->nh.nlmsg_len) + RTA_LENGTH(0);
 */
 }
-typedef struct {
-  struct nlmsghdr  nh;
-  struct ifaddrmsg msg;
-  char             attrbuf[512];
-} ifaddrmsg_req;
 
 int create_ifaddrmsg_req(ifaddrmsg_req* req, unsigned short type, int ifindex, unsigned char family, unsigned char* addr, unsigned char addrlen, unsigned char prefix) {
   struct rtattr *rta;
@@ -59,11 +44,6 @@ int create_ifaddrmsg_req(ifaddrmsg_req* req, unsigned short type, int ifindex, u
   req->nh.nlmsg_len = NLMSG_ALIGN(req->nh.nlmsg_len) + RTA_LENGTH(addrlen);
   memcpy(RTA_DATA(rta), addr, addrlen);
 }
-
-typedef struct {
-  int fd;
-  int sequence_number;
-} context;
 
 int prepare_socket(context* ctx) {
   int fd = -1;
@@ -115,17 +95,21 @@ int recv_response(context* ctx) {
   return -1;
 }
 
-int send_request(context* ctx, ifinfomsg_req* req) {
+int send_request(context* ctx, void* req) {
   int len = -1;
-  req->nh.nlmsg_seq = ctx->sequence_number;
-  req->nh.nlmsg_flags |= NLM_F_ACK;
-  return send(ctx->fd, req, req->nh.nlmsg_len, 0);
+  struct nlmsghdr* nh;
+
+  nh = (struct nlmsghdr*) req;
+  nh->nlmsg_seq = ctx->sequence_number;
+  nh->nlmsg_flags |= NLM_F_ACK;
+  return send(ctx->fd, req, nh->nlmsg_len, 0);
 }
 
 int close_socket(context* ctx) {
   return close(ctx->fd);
 }
 
+/*
 int main() {
   int rc = -1;
   context ctx;
@@ -145,3 +129,5 @@ int main() {
 
   close_socket(&ctx);
 }
+*/
+#endif
