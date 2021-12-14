@@ -27,12 +27,13 @@ type
     cidr*: uint8
     next_allowedip*: ptr wg_allowedip
 
-  wg_peer_flags* {.size: sizeof(cint).} = enum
+  wg_peer_flag* {.size: sizeof(cint).} = enum
     WGPEER_REMOVE_ME = 1,
     WGPEER_REPLACE_ALLOWEDIPS,
     WGPEER_HAS_PUBLIC_KEY,
     WGPEER_HAS_PRESHARED_KEY,
     WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL
+  wg_peer_flags = set[wg_peer_flag]
 
 
 type

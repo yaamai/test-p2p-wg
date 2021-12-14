@@ -1538,7 +1538,6 @@ int wg_key_from_base64(wg_key key, const wg_key_b64_string base64)
 	volatile uint8_t ret = 0;
 
 	if (strlen(base64) != sizeof(wg_key_b64_string) - 1 || base64[sizeof(wg_key_b64_string) - 2] != '=') {
-        printf("wireguard.c: %d, %d, %d\n", strlen(base64), sizeof(wg_key_b64_string), base64[sizeof(wg_key_b64_string)-2]);
 		errno = EINVAL;
 		goto out;
 	}
