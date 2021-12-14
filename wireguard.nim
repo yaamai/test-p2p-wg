@@ -8,7 +8,7 @@ const IFNAMSIZ = 16
 
 type
   wg_key* = array[32, char]
-  wg_key_b64_string* = array[45, char]
+  wg_key_b64_string* = array[45, char] or cstring
 
 ##  Cross platform __kernel_timespec
 

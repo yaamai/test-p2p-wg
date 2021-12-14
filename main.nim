@@ -25,7 +25,7 @@ proc newWireguardDevice(config: Config): WireguardDevice =
   echo result.dev[]
 
   result.dev.flags = {WGDEVICE_HAS_PRIVATE_KEY, WGDEVICE_HAS_LISTEN_PORT}
-  rc = wg_key_from_base64(result.dev.private_key, cast[array[45, char]](config.privateKey))
+  rc = wg_key_from_base64(result.dev.private_key, config.privateKey.cstring)
   echo "wg_key_from_base64: ", rc
   echo config.privateKey
   echo result.dev.private_key
@@ -48,7 +48,7 @@ proc addAddress(self: WireguardDevice, address: string) =
 proc generatePeerConfig(self: WireguardDevice): Config =
   var
     publicKey, privateKey: wg_key
-    publicKeyB64, privateKeyB64: wg_key_b64_string
+    publicKeyB64, privateKeyB64: array[45, char]
     rc = 0
 
   wg_generate_private_key(privateKey)
@@ -57,8 +57,8 @@ proc generatePeerConfig(self: WireguardDevice): Config =
   echo publicKey
   wg_key_to_base64(publicKeyB64, publicKey)
   wg_key_to_base64(privateKeyB64, privateKey)
-  echo cast[string](@privateKeyB64)
-  echo cast[string](@publicKeyB64)
+  echo "peer privkey:", privateKeyB64
+  echo cast[string](publicKeyB64.join())
 
   rc = wg_get_device(unsafeAddr self.dev, cast[string](@(self.dev.name)))
   echo rc
@@ -75,7 +75,7 @@ proc generatePeerConfig(self: WireguardDevice): Config =
   echo rc
 
 
-  Config(privateKey: cast[string](@privateKeyB64), tunnelIp: "10.163.0.2/32")
+  Config(privateKey: privateKeyB64.join(), tunnelIp: "10.163.0.2/32")
 
 
 var n0Config = Config(
