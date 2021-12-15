@@ -4,5 +4,5 @@ import wireguard
 
 fn main() {
   println("run")
-  println(wireguard.new_device("sss0")?)
+  println(wireguard.new_device("sss0", true)?)
 }
