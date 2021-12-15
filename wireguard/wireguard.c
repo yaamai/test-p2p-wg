@@ -1113,11 +1113,11 @@ again:
 				if (!mnl_attr_put_check(nlh, mnl_ideal_socket_buffer_size(), WGPEER_A_PRESHARED_KEY, sizeof(peer->preshared_key), peer->preshared_key))
 					goto toobig_peers;
 			}
-			if (peer->endpoint.addr.sa_family == AF_INET) {
-				if (!mnl_attr_put_check(nlh, mnl_ideal_socket_buffer_size(), WGPEER_A_ENDPOINT, sizeof(peer->endpoint.addr4), &peer->endpoint.addr4))
+			if (peer->addr.sa_family == AF_INET) {
+				if (!mnl_attr_put_check(nlh, mnl_ideal_socket_buffer_size(), WGPEER_A_ENDPOINT, sizeof(peer->addr4), &peer->addr4))
 					goto toobig_peers;
-			} else if (peer->endpoint.addr.sa_family == AF_INET6) {
-				if (!mnl_attr_put_check(nlh, mnl_ideal_socket_buffer_size(), WGPEER_A_ENDPOINT, sizeof(peer->endpoint.addr6), &peer->endpoint.addr6))
+			} else if (peer->addr.sa_family == AF_INET6) {
+				if (!mnl_attr_put_check(nlh, mnl_ideal_socket_buffer_size(), WGPEER_A_ENDPOINT, sizeof(peer->addr6), &peer->addr6))
 					goto toobig_peers;
 			}
 			if (peer->flags & WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL) {
@@ -1283,10 +1283,10 @@ static int parse_peer(const struct nlattr *attr, void *data)
 		if (mnl_attr_get_payload_len(attr) < sizeof(*addr))
 			break;
 		addr = mnl_attr_get_payload(attr);
-		if (addr->sa_family == AF_INET && mnl_attr_get_payload_len(attr) == sizeof(peer->endpoint.addr4))
-			memcpy(&peer->endpoint.addr4, addr, sizeof(peer->endpoint.addr4));
-		else if (addr->sa_family == AF_INET6 && mnl_attr_get_payload_len(attr) == sizeof(peer->endpoint.addr6))
-			memcpy(&peer->endpoint.addr6, addr, sizeof(peer->endpoint.addr6));
+		if (addr->sa_family == AF_INET && mnl_attr_get_payload_len(attr) == sizeof(peer->addr4))
+			memcpy(&peer->addr4, addr, sizeof(peer->addr4));
+		else if (addr->sa_family == AF_INET6 && mnl_attr_get_payload_len(attr) == sizeof(peer->addr6))
+			memcpy(&peer->addr6, addr, sizeof(peer->addr6));
 		break;
 	}
 	case WGPEER_A_PERSISTENT_KEEPALIVE_INTERVAL:
