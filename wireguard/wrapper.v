@@ -1,8 +1,9 @@
-module main
+module wireguard
 
-#flag @VROOT/wireguard.o
-#flag -I @VROOT
+#flag @VMODROOT/wireguard.o
+#flag -I@VMODROOT
 #include "wireguard.h"
+
 fn C.wg_list_device_names() &char
 fn C.wg_get_device(dev &&C.wg_device, device_name &char) int
 fn C.wg_set_device(dev &C.wg_device) int
@@ -32,22 +33,15 @@ mut:
 	last_peer &C.wg_peer
 }
 
+/*
 fn cstring_array_to_vstring_array(array &char) []string {
 	mut result := []string{}
 	mut p := unsafe { array }
-	println(p)
-	println(int(*(p+4)))
-	println((p+4))
 	for int(*p) != 0 {
-		println(p)
-	        s := unsafe { cstring_to_vstring(p)}
-		println(s)
-		println(p)
-		println(s.len)
-        	p = unsafe { p+s.len+1 }
-		println(p)
-		println(int(*p))
+        s := unsafe { cstring_to_vstring(p)}
+       	p = unsafe { p+s.len+1 }
 		result << s
 	}
 	return result
 }
+*/

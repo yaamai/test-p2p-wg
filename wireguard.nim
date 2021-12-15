@@ -7,8 +7,8 @@ import std/posix
 const IFNAMSIZ = 16
 
 type
-  wg_key* = array[32, char]
-  wg_key_b64_string* = array[45, char] or cstring
+  wg_key* = array[32, uint8]
+  wg_key_b64_string* = ptr array[45, char] or cstring
 
 ##  Cross platform __kernel_timespec
 

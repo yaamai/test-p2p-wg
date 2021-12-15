@@ -30,6 +30,10 @@ proc newWireguardDevice(config: Config): (Option[WireguardDevice], int) =
 
   rc = wg_key_from_base64(self.dev.private_key, config.privateKey.cstring)
   if rc < 0: return (none(WireguardDevice), rc)
+  echo repr(self.dev.private_key.addr)
+  echo self.dev.private_key
+  echo config.privateKey[0]
+  echo self.dev.private_key[0]
 
   self.dev.listen_port = config.listenPort
   self.dev.flags = {WGDEVICE_HAS_PRIVATE_KEY, WGDEVICE_HAS_LISTEN_PORT}
