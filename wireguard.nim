@@ -8,7 +8,7 @@ const IFNAMSIZ = 16
 
 type
   wg_key* = array[32, uint8]
-  wg_key_b64_string* = ptr array[45, char] or cstring
+  wg_key_b64_string* = array[45, char] or cstring
 
 ##  Cross platform __kernel_timespec
 
@@ -85,7 +85,7 @@ proc wg_free_device*(dev: ptr wg_device) {.header: "wireguard.h", importc: "wg_f
 ##  first\0second\0third\0forth\0last\0\0
 proc wg_list_device_names*(): cstring {.header: "wireguard.h", importc: "wg_list_device_names"}
 proc wg_key_to_base64*(base64: wg_key_b64_string; key: wg_key) {.header: "wireguard.h", importc: "wg_key_to_base64"}
-proc wg_key_from_base64*(key: wg_key; base64: wg_key_b64_string): cint {.header: "wireguard.h", importc: "wg_key_from_base64"}
+proc wg_key_from_base64*(key: ptr wg_key; base64: wg_key_b64_string): cint {.header: "wireguard.h", importc: "wg_key_from_base64"}
 proc wg_key_is_zero*(key: wg_key): bool {.header: "wireguard.h", importc: "wg_key_is_zero"}
 proc wg_generate_public_key*(public_key: wg_key; private_key: wg_key) {.header: "wireguard.h", importc: "wg_generate_public_key"}
 proc wg_generate_private_key*(private_key: wg_key) {.header: "wireguard.h", importc: "wg_generate_private_key"}

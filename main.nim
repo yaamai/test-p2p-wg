@@ -28,12 +28,8 @@ proc newWireguardDevice(config: Config): (Option[WireguardDevice], int) =
   rc = wg_get_device(addr self.dev, config.deviceName)
   if rc < 0: return (none(WireguardDevice), rc)
 
-  rc = wg_key_from_base64(self.dev.private_key, config.privateKey.cstring)
+  rc = wg_key_from_base64(addr self.dev.private_key, config.privateKey.cstring)
   if rc < 0: return (none(WireguardDevice), rc)
-  echo repr(self.dev.private_key.addr)
-  echo self.dev.private_key
-  echo config.privateKey[0]
-  echo self.dev.private_key[0]
 
   self.dev.listen_port = config.listenPort
   self.dev.flags = {WGDEVICE_HAS_PRIVATE_KEY, WGDEVICE_HAS_LISTEN_PORT}
@@ -64,7 +60,6 @@ proc generatePeerConfig(self: WireguardDevice): Config =
 
   wg_key_to_base64(publicKeyB64, publicKey)
   wg_key_to_base64(privateKeyB64, privateKey)
-  echo publicKey, publicKeyB64
 
   rc = wg_get_device(unsafeAddr self.dev, cast[string](@(self.dev.name)))
   echo rc
