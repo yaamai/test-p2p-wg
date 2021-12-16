@@ -1,5 +1,4 @@
 module wireguard
-import net
 
 #flag @VMODROOT/wireguard.o
 #flag -I@VMODROOT

@@ -24,13 +24,16 @@ pub fn (k Key) base64() (string, string) {
   return string(public), string(private)
 }
 
+// can't use ?Type in sturct literal argument
+// error: incompatible types when initializing type ‘unsigned char’ using type ‘string’
+// Option_wireguard__Peer _t3 = wireguard__new_peer((wireguard__PeerConfig){.key = p.remote_public_key,.addr = p.remote_addr,.port = p.remote_port,.allowed_ip = {EMPTY_STRUCT_INITIALIZATION},.allowed_ip_len = 32,});
 [params]
-struct PeerConfig {
+pub struct PeerConfig {
   key string
-  addr ?string
-  port ?int
-  allowed_ip ?string
-  allowed_ip_len ?int
+  addr string
+  port int
+  allowed_ip string
+  allowed_ip_len int = 32
 }
 
 struct Peer {
@@ -38,15 +41,18 @@ mut:
   base &C.wg_peer
 }
 
-pub fn new_peer(key string, addr string, port int) ?Peer {
+pub fn new_peer(p PeerConfig) ?Peer {
   mut allowed_ip := C.wg_allowedip{
     family: u16(net.AddrFamily.ip),
-	cidr: 32,
+    cidr: p.allowed_ip_len,
     next_allowedip: 0,
   }
-  mut rc := C.inet_pton(net.AddrFamily.ip, addr.str, &allowed_ip.ip4)
-  if rc < 0 {
-    return error('inte_pton() failed: ${rc}')
+
+  if p.allowed_ip != ""{
+    mut rc := C.inet_pton(net.AddrFamily.ip, p.allowed_ip.str, &allowed_ip.ip4)
+    if rc < 0 {
+      return error('inte_pton() failed: ${rc}')
+    }
   }
 
   mut peer := C.wg_peer{
@@ -56,15 +62,17 @@ pub fn new_peer(key string, addr string, port int) ?Peer {
     next_peer: 0,
   }
 
-  // vlang's C-FFI has bug to initialize union member in struct declaration.
-  // if move below assignment at struct declaration will override addr4 with addr6...
-  rc = C.inet_pton(net.AddrFamily.ip, addr.str, &peer.addr4.sin_addr)
-  if rc < 0 {
-    return error('inte_pton() failed: ${rc}')
+  if p.addr != "" && p.port != 0 {
+    // vlang's C-FFI has bug to initialize union member in struct declaration.
+    // if move below assignment at struct declaration will override addr4 with addr6...
+    rc := C.inet_pton(net.AddrFamily.ip, p.addr.str, &peer.addr4.sin_addr)
+    if rc < 0 {
+      return error('inte_pton() failed: ${rc}')
+    }
+    peer.addr4.sin_family = u16(net.AddrFamily.ip)
+    peer.addr4.sin_port = u16(C.htons(p.port))
   }
-  peer.addr4.sin_family = u16(net.AddrFamily.ip)
-  peer.addr4.sin_port = u16(C.htons(port))
-  C.wg_key_from_base64(&peer.public_key[0], key.str)
+  C.wg_key_from_base64(&peer.public_key[0], p.key.str)
 
   return Peer{base: &peer}
 }

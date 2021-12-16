@@ -2,6 +2,7 @@ module main
 import os
 import wireguard
 import netlink
+import json
 
 fn bootstrap() ?wireguard.Device {
   public_key, private_key := wireguard.new_key()?.base64()
@@ -18,23 +19,39 @@ fn bootstrap() ?wireguard.Device {
   return dev
 }
 
-fn generate_peer_confg(mut dev wireguard.Device) ?wireguard.Device {
+fn generate_peer_confg(mut dev wireguard.Device) ?JoinConfig {
   public_key, private_key := wireguard.new_key()?.base64()
 
-  peer1 := wireguard.new_peer(public_key, "127.0.0.1", 43618)?
+  peer1 := wireguard.new_peer(key: public_key)?
   dev.set_peer(peer1)
   dev.apply()?
 
-  peer2 := wireguard.new_peer(dev.get_public_key(), "127.0.0.1", 43617)?
-  mut new_device:= wireguard.new_device("sss1", true)?
-  new_device.set_private_key(private_key)
-  new_device.set_listen_port(43618)
-  new_device.set_peer(peer2)
-  new_device.apply()?
-  netlink.set_interface_up(new_device.get_index())?
-  netlink.add_interface_addr(new_device.get_index(), "10.163.0.2", 32)?
+  return JoinConfig {
+    private_key: private_key,
+    remote_port: 43617,
+    remote_public_key: dev.get_public_key(),
+  }
+}
 
-  return new_device
+[params]
+struct JoinConfig {
+mut:
+  private_key string
+  remote_addr string
+  remote_port int
+  remote_public_key string
+}
+
+fn do_join(p JoinConfig) ?wireguard.Device {
+  mut dev := wireguard.new_device("sss0", true)?
+  dev.set_private_key(p.private_key)
+  dev.set_listen_port(43617)
+  dev.set_peer(wireguard.new_peer(key: p.remote_public_key, addr: p.remote_addr, port: p.remote_port)?)
+  dev.apply()?
+  netlink.set_interface_up(dev.get_index())?
+  netlink.add_interface_addr(dev.get_index(), "10.163.0.2", 32)?
+
+  return dev
 }
 
 /*
@@ -54,17 +71,24 @@ sudo ip netns exec siteB ip link set dev lo up
 */
 
 fn main() {
-  if os.args.len != 2 {
+  if os.args.len < 2 {
     println(error('insufficient command-line arguments'))
     return
   }
   action := os.args[1]
 
+  // TODO: configure allowed ip on peer
+  // TODO: append route ...
   if action == "bootstrap" {
     mut dev := bootstrap()?
   } else if action == "genpeer" {
     mut dev := wireguard.new_device("sss0", true)?
-    node1 := generate_peer_confg(mut dev)?
+    mut config := generate_peer_confg(mut dev)?
+    config.remote_addr = "10.0.0.1"
+    println(json.encode(config))
+  } else if action == "join" {
+    config := json.decode(JoinConfig, os.args[2])?
+    do_join(config)?
   }
 
   // println(k.base64())
