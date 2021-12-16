@@ -1,44 +1,51 @@
 module wireguard
 import net
 
+struct Key {
+  private_key [32]byte
+  public_key [32]byte
+}
+
+pub fn new_key() ?Key {
+  k := Key{}
+
+  C.wg_generate_private_key(&k.private_key[0])
+  C.wg_generate_public_key(&k.public_key[0], &k.private_key[0])
+
+  return k
+}
+
+pub fn (k Key) base64() (string, string) {
+  public := []byte{len: 45}
+  private := []byte{len: 45}
+  C.wg_key_to_base64(public.data, &k.public_key[0])
+  C.wg_key_to_base64(private.data, &k.private_key[0])
+
+  return string(public), string(private)
+}
+
 struct Peer {
 mut:
   base &C.wg_peer
 }
 
-pub fn new_peer(key string) ?Peer {
+pub fn new_peer(key string, addr string, port int) ?Peer {
   mut peer := C.wg_peer{
     flags: C.WGPEER_HAS_PUBLIC_KEY | C.WGPEER_REPLACE_ALLOWEDIPS,
     first_allowedip: 0,
     last_allowedip: 0,
     next_peer: 0,
   }
+
   // vlang's C-FFI has bug to initialize union member in struct declaration.
   // if move below assignment at struct declaration will override addr4 with addr6...
-  C.inet_pton(net.AddrFamily.ip, c"1.2.3.4", &peer.addr4.sin_addr)
+  rc := C.inet_pton(net.AddrFamily.ip, addr.str, &peer.addr4.sin_addr)
+  if rc < 0 {
+    return error('inte_pton() failed: ${rc}')
+  }
   peer.addr4.sin_family = u16(net.AddrFamily.ip)
-  peer.addr4.sin_port = u16(C.htons(11134))
-  println(peer)
+  peer.addr4.sin_port = u16(C.htons(port))
   C.wg_key_from_base64(&peer.public_key[0], key.str)
-
-/*
-  peer.public_key = 
-struct C.wg_peer {
-    flags int
-    public_key [wg_key_size]byte
-    preshared_key [wg_key_size]byte
-    addr &C.sockaddr
-    addr4 &C.sockaddr_in
-    addr6 &C.sockaddr_in6
-    last_handshake_time C.timespec64
-    rx_bytes u64
-    tx_bytes u64
-    persistent_keepalive_interval u16
-    first_allowedip &C.wg_allowedip
-    last_allowedip &C.wg_allowedip
-    next_peer &C.wg_peer
-}
-*/
 
   return Peer{base: &peer}
 }
@@ -60,16 +67,30 @@ pub fn new_device(name string, allow_exists bool) ?Device {
   }
 
   mut dev := Device{base: &C.wg_device(0)}
-  dev.sync(name)?
+  rc = C.wg_get_device(&dev.base, name.str)
+  if rc != 0 {
+    return error('wg_get_device() failed')
+  }
 
   return dev
 }
 
-fn (mut d Device) sync(name string) ? {
-  rc := C.wg_get_device(&d.base, name.str)
+fn (d Device) sync() ? {
+  rc := C.wg_get_device(&d.base, &d.base.name[0])
   if rc != 0 {
     return error('wg_get_device() failed')
   }
+}
+
+pub fn (d Device) get_public_key() string {
+  public := []byte{len: 45}
+  C.wg_key_to_base64(public.data, &d.base.public_key[0])
+  return string(public)
+}
+
+pub fn (mut d Device) set_public_key(public_key string) {
+  C.wg_key_from_base64(&d.base.public_key[0], public_key.str)
+  d.base.flags = d.base.flags | C.WGDEVICE_HAS_PUBLIC_KEY
 }
 
 pub fn (mut d Device) set_private_key(private_key string) {
@@ -82,7 +103,7 @@ pub fn (mut d Device) set_private_key(private_key string) {
 }
 
 pub fn (mut d Device) set_listen_port(port int) {
-  d.base.listen_port = 21212
+  d.base.listen_port = u16(port)
   d.base.flags = d.base.flags | C.WGDEVICE_HAS_LISTEN_PORT
 }
 
@@ -98,29 +119,6 @@ pub fn (d Device) apply() ? {
     return error('wg_set_device() failed')
   }
 }
-
-/*
-  private_key := []byte{len: 32}
-  C.wg_generate_private_key(private_key.data)
-
-  public_key := []byte{len: 32}
-  C.wg_generate_public_key(public_key.data, private_key.data)
-
-
-  unsafe {
-    vmemcpy(base.public_key, public_key.data, 32)
-    vmemcpy(base.private_key, private_key.data, 32)
-  }
-  base.flags = base.flags | C.WGDEVICE_HAS_PRIVATE_KEY
-
-  base.listen_port = 21212
-  base.flags = base.flags | C.WGDEVICE_HAS_LISTEN_PORT
-
-
-  // println(C.wg_key_is_zero(base.public_key))
-
-}
-*/
 
 fn (d Device) destroy() {
   C.wg_del_device(&d.base.name[0])
