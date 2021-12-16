@@ -82,6 +82,10 @@ fn (d Device) sync() ? {
   }
 }
 
+pub fn (d Device) get_index() u32 {
+  return d.base.ifindex
+}
+
 pub fn (d Device) get_public_key() string {
   public := []byte{len: 45}
   C.wg_key_to_base64(public.data, &d.base.public_key[0])

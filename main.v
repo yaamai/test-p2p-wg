@@ -1,6 +1,7 @@
 module main
 import os
 import wireguard
+import netlink
 
 fn bootstrap() ?wireguard.Device {
   public_key, private_key := wireguard.new_key()?.base64()
@@ -10,6 +11,8 @@ fn bootstrap() ?wireguard.Device {
   dev.set_public_key(public_key)
   dev.set_listen_port(43617)
   dev.apply()?
+
+  netlink.set_interface_up(dev.get_index())?
 
   return dev
 }
@@ -27,6 +30,7 @@ fn generate_peer_confg(mut dev wireguard.Device) ?wireguard.Device {
   new_device.set_listen_port(43618)
   new_device.set_peer(peer2)
   new_device.apply()?
+  netlink.set_interface_up(new_device.get_index())?
 
   return new_device
 }

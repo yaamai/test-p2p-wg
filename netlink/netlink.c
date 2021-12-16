@@ -1,5 +1,3 @@
-#ifndef NETLINK_H
-#define NETLINK_H
 #include "netlink.h"
 
 // sendmsg(3, {msg_name={sa_family=AF_NETLINK, nl_pid=0, nl_groups=00000000}, msg_namelen=12, msg_iov=[{iov_base=[{nlmsg_len=32, nlmsg_type=RTM_NEWLINK, nlmsg_flags=NLM_F_REQUEST|NLM_F_ACK, nlmsg_seq=1639343443, nlmsg_pid=0}, {ifi_family=AF_UNSPEC, ifi_type=ARPHRD_NETROM, ifi_index=if_nametoindex("testwg0"), ifi_flags=IFF_UP, ifi_change=0x1}], iov_len=32}], msg_iovlen=1, msg_controllen=0, msg_flags=0}, 0) = 32
@@ -130,4 +128,3 @@ int main() {
   close_socket(&ctx);
 }
 */
-#endif
