@@ -13,6 +13,7 @@ fn bootstrap() ?wireguard.Device {
   dev.apply()?
 
   netlink.set_interface_up(dev.get_index())?
+  netlink.add_interface_addr(dev.get_index(), "10.163.0.1", 32)?
 
   return dev
 }
@@ -31,6 +32,7 @@ fn generate_peer_confg(mut dev wireguard.Device) ?wireguard.Device {
   new_device.set_peer(peer2)
   new_device.apply()?
   netlink.set_interface_up(new_device.get_index())?
+  netlink.add_interface_addr(new_device.get_index(), "10.163.0.2", 32)?
 
   return new_device
 }

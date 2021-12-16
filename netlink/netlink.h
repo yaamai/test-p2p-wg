@@ -15,7 +15,7 @@ typedef struct ifinfomsg_req {
   char             attrbuf[512];
 } ifinfomsg_req;
 
-typedef struct {
+typedef struct ifaddrmsg_req {
   struct nlmsghdr  nh;
   struct ifaddrmsg msg;
   char             attrbuf[512];
