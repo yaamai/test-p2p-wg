@@ -24,6 +24,15 @@ pub fn (k Key) base64() (string, string) {
   return string(public), string(private)
 }
 
+[params]
+struct PeerConfig {
+  key string
+  addr ?string
+  port ?int
+  allowed_ip ?string
+  allowed_ip_len ?int
+}
+
 struct Peer {
 mut:
   base &C.wg_peer

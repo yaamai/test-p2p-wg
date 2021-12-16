@@ -37,9 +37,35 @@ fn generate_peer_confg(mut dev wireguard.Device) ?wireguard.Device {
   return new_device
 }
 
+/*
+sudo ip netns del siteA
+sudo ip netns del siteB
+sudo ip netns add siteA
+sudo ip netns add siteB
+sudo ip link add veth0 type veth peer name veth1
+sudo ip link set dev veth0 netns siteA
+sudo ip link set dev veth1 netns siteB
+sudo ip netns exec siteA ip addr add dev veth0 10.0.0.1/24
+sudo ip netns exec siteB ip addr add dev veth1 10.0.0.2/24
+sudo ip netns exec siteA ip link set dev veth0 up
+sudo ip netns exec siteB ip link set dev veth1 up
+sudo ip netns exec siteA ip link set dev lo up
+sudo ip netns exec siteB ip link set dev lo up
+*/
+
 fn main() {
-  mut dev := bootstrap()?
-  node1 := generate_peer_confg(mut dev)?
+  if os.args.len != 2 {
+    println(error('insufficient command-line arguments'))
+    return
+  }
+  action := os.args[1]
+
+  if action == "bootstrap" {
+    mut dev := bootstrap()?
+  } else if action == "genpeer" {
+    mut dev := wireguard.new_device("sss0", true)?
+    node1 := generate_peer_confg(mut dev)?
+  }
 
   // println(k.base64())
   // peer := wireguard.new_peer("CPDlnyk0H7dgYNtmIoa1AAuD8ulJ2QMITrbzQi3aoW0=", "2.3.4.5", 43617)?
