@@ -30,16 +30,26 @@ mut:
 }
 
 pub fn new_peer(key string, addr string, port int) ?Peer {
+  mut allowed_ip := C.wg_allowedip{
+    family: u16(net.AddrFamily.ip),
+	cidr: 32,
+    next_allowedip: 0,
+  }
+  mut rc := C.inet_pton(net.AddrFamily.ip, addr.str, &allowed_ip.ip4)
+  if rc < 0 {
+    return error('inte_pton() failed: ${rc}')
+  }
+
   mut peer := C.wg_peer{
     flags: C.WGPEER_HAS_PUBLIC_KEY | C.WGPEER_REPLACE_ALLOWEDIPS,
-    first_allowedip: 0,
-    last_allowedip: 0,
+    first_allowedip: &allowed_ip,
+    last_allowedip: &allowed_ip,
     next_peer: 0,
   }
 
   // vlang's C-FFI has bug to initialize union member in struct declaration.
   // if move below assignment at struct declaration will override addr4 with addr6...
-  rc := C.inet_pton(net.AddrFamily.ip, addr.str, &peer.addr4.sin_addr)
+  rc = C.inet_pton(net.AddrFamily.ip, addr.str, &peer.addr4.sin_addr)
   if rc < 0 {
     return error('inte_pton() failed: ${rc}')
   }
