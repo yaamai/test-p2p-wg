@@ -12,21 +12,25 @@ fn test_range() {
 }
 
 struct TestComm {
+mut:
+  n &Node<TestID>
 }
 
 fn (c TestComm) get_predecessor() ?TestID {
-  return TestID{}
+  return error("")
 }
 
-fn (c TestComm) notify(id TestID) {
+fn (mut c TestComm) notify(id TestID) {
+  c.n.notify(id)
 }
 
 struct TestID {
   id string
+  m &map[string]&Node<TestID>
 }
 
 fn (i TestID) get_communicator(to TestID) ?TestComm {
-  return error("")
+  return TestComm{n: i.m[to.id]}
 }
 
 fn (a TestID) < (b TestID) bool {
@@ -34,14 +38,18 @@ fn (a TestID) < (b TestID) bool {
 }
 
 fn (a TestID) str () string {
-	return ""
+	return a.id
 }
 
 fn test_bootstrap() {
-  bootstrap<TestID>(TestID{id: "a"})
+  mut m := map[string]&Node<TestID>{}
+  mut n := bootstrap<TestID>(TestID{id: "a", m: &m})
+  m["a"] = &n
 }
 
-fn test_stabilize() {
-  mut n := bootstrap<TestID>(TestID{id: "a"})
-  n.stabilize()
+fn test_stabilize() ? {
+  mut m := map[string]&Node<TestID>{}
+  mut n := bootstrap<TestID>(TestID{id: "a", m: &m})
+  m["a"] = &n
+  n.stabilize()?
 }
