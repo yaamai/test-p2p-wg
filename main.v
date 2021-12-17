@@ -71,6 +71,7 @@ sudo ip netns exec siteB ip link set dev lo up
 */
 
 fn main() {
+
   if os.args.len < 2 {
     println(error('insufficient command-line arguments'))
     return

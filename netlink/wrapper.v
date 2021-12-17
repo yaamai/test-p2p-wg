@@ -1,6 +1,28 @@
 module netlink
 import net
 
+pub fn add_if_route(addr string, prefix int, ifindex u32) ? {
+  req := C.rtmsg_req{}
+  ctx := C.context{}
+
+  addr_buf := []byte{len: 4}
+  mut rc := C.inet_pton(net.AddrFamily.ip, addr.str, &addr_buf[0])
+  if rc < 0 {
+    return error('inte_pton() failed: ${rc}')
+  }
+
+  family := byte(net.AddrFamily.ip)
+  C.create_rtmsg_req(&req, rtm_newroute, family, &addr_buf[0], 4, prefix, ifindex)
+
+  C.prepare_socket(&ctx)
+  C.send_request(&ctx, &req)
+  rc = C.recv_response(&ctx)
+  if rc < 0 {
+    return error('receive failed response with netlink: ${rc}')
+  }
+  C.close_socket(&ctx)
+}
+
 pub fn set_interface_up(ifindex u32) ? {
   req := C.ifinfomsg_req{}
   ctx := C.context{}

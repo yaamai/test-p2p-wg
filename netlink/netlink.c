@@ -1,5 +1,35 @@
 #include "netlink.h"
 
+// sendmsg(3, {msg_name={sa_family=AF_NETLINK, nl_pid=0, nl_groups=00000000}, msg_namelen=12, msg_iov=[{iov_base=[{nlmsg_len=44, nlmsg_type=RTM_NEWROUTE, nlmsg_flags=NLM_F_REQUEST|NLM_F_ACK|NLM_F_EXCL|NLM_F_CREATE, nlmsg_seq=1639695875, nlmsg_pid=0}, {rtm_family=AF_INET, rtm_dst_len=32, rtm_src_len=0, rtm_tos=0, rtm_table=RT_TABLE_MAIN, rtm_protocol=RTPROT_BOOT, rtm_scope=RT_SCOPE_LINK, rtm_type=RTN_UNICAST, rtm_flags=0}, [[{nla_len=8, nla_type=RTA_DST}, inet_addr("1.2.3.4")], [{nla_len=8, nla_type=RTA_OIF}, if_nametoindex("docker0")]]], iov_len=44}], msg_iovlen=1, msg_controllen=0, msg_flags=0}, 0) = 44
+
+int create_rtmsg_req(rtmsg_req* req, unsigned short type, unsigned char family, unsigned char* addr, unsigned char addrlen, unsigned char prefix, int ifindex) {
+  struct rtattr *rta;
+
+  memset(req, 0, sizeof(*req));
+  req->nh.nlmsg_len = NLMSG_LENGTH(sizeof(req->msg));
+  req->nh.nlmsg_type = type;
+  req->nh.nlmsg_flags = NLM_F_CREATE | NLM_F_EXCL | NLM_F_REQUEST;
+
+  req->msg.rtm_family = family;
+  req->msg.rtm_dst_len = prefix;
+  req->msg.rtm_table = RT_TABLE_MAIN;
+  req->msg.rtm_protocol = RTPROT_BOOT;
+  req->msg.rtm_scope = RT_SCOPE_LINK;
+  req->msg.rtm_type = RTN_UNICAST;
+
+  rta = (struct rtattr *)(((char *)req) + NLMSG_ALIGN(req->nh.nlmsg_len));
+  rta->rta_type = RTA_DST;
+  rta->rta_len = RTA_LENGTH(addrlen);
+  req->nh.nlmsg_len = NLMSG_ALIGN(req->nh.nlmsg_len) + RTA_LENGTH(addrlen);
+  memcpy(RTA_DATA(rta), addr, addrlen);
+
+  rta = (struct rtattr *)(((char *)req) + NLMSG_ALIGN(req->nh.nlmsg_len));
+  rta->rta_type = RTA_OIF;
+  rta->rta_len = RTA_LENGTH(4);
+  req->nh.nlmsg_len = NLMSG_ALIGN(req->nh.nlmsg_len) + RTA_LENGTH(4);
+  memcpy(RTA_DATA(rta), &ifindex, 4);
+}
+
 // sendmsg(3, {msg_name={sa_family=AF_NETLINK, nl_pid=0, nl_groups=00000000}, msg_namelen=12, msg_iov=[{iov_base=[{nlmsg_len=32, nlmsg_type=RTM_NEWLINK, nlmsg_flags=NLM_F_REQUEST|NLM_F_ACK, nlmsg_seq=1639343443, nlmsg_pid=0}, {ifi_family=AF_UNSPEC, ifi_type=ARPHRD_NETROM, ifi_index=if_nametoindex("testwg0"), ifi_flags=IFF_UP, ifi_change=0x1}], iov_len=32}], msg_iovlen=1, msg_controllen=0, msg_flags=0}, 0) = 32
 
 int create_ifinfomsg_req(ifinfomsg_req* req, unsigned short type, int ifindex, unsigned int flags) {
