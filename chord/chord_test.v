@@ -11,6 +11,11 @@ fn test_range() {
   assert !r3.contains("b")
 }
 
+fn test_range_inclusive() {
+  r1 := Range<string>{from: "a", to: "c", to_inclusive: true}
+  assert r1.contains("c")
+}
+
 struct TestComm {
 mut:
   n &Node<TestID>
@@ -23,12 +28,20 @@ fn (c TestComm) get_predecessor() ?TestID {
   return c.n.predecessor
 }
 
-fn (c TestComm) find_successor(id TestID) TestID {
+fn (c TestComm) find_successor(id TestID) ?TestID {
   return c.n.find_successor(id)
 }
 
 fn (mut c TestComm) notify(id TestID) {
   c.n.notify(id)
+}
+
+fn (c TestComm) query(id TestID) ?int {
+  return c.n.query(id)
+}
+
+fn (mut c TestComm) set(id TestID, data int) ? {
+  c.n.set(id, data)?
 }
 
 struct TestID {
@@ -37,6 +50,7 @@ struct TestID {
 }
 
 fn (i TestID) get_communicator(to TestID) ?TestComm {
+  // println("TestID{${i.id}}.get_communicator(${to.id})")
   unsafe {
     return TestComm{n: i.m[to.id]}
   }
@@ -63,8 +77,30 @@ fn test_stabilize() ? {
   n.stabilize()?
 }
 
-fn test_join_peers() ? {
+fn create_ring(ids []string) ?(map[string]&Node<TestID>) {
   mut m := map[string]&Node<TestID>{}
+  mut first := bootstrap<TestID>(TestID{id: ids[0], m: &m})
+
+  m[ids[0]] = &first
+
+  for id_str in ids[1..] {
+    // TODO: if TestID construct in function argument of join, crash occured when access to id.m
+    id := TestID{id: id_str, m: &m}
+    mut n := join<TestID>(id, first.id)?
+    m[id_str] = &n
+  }
+
+  for i := 0; i < ids.len; i++ {
+    for id in ids {
+      m[id].stabilize()?
+    }
+  }
+
+  return m
+}
+
+
+fn test_join_peers() ? {
 
   mut tt := [
     ["a"],
@@ -74,20 +110,7 @@ fn test_join_peers() ? {
   ]
 
   for mut ids in tt {
-
-    mut first := bootstrap<TestID>(TestID{id: ids[0], m: &m})
-    m[ids[0]] = &first
-
-    for id in ids[1..] {
-      mut n := join<TestID>(TestID{id: id, m: &m}, first.id)?
-      m[id] = &n
-    }
-
-    for i := 0; i < ids.len; i++ {
-      for id in ids {
-        m[id].stabilize()?
-      }
-    }
+    m := create_ring(ids)?
 
     ids.sort()
     for idx, id in ids {
@@ -97,4 +120,16 @@ fn test_join_peers() ? {
       assert m[id].predecessor == m[prev].id
     }
   }
+}
+
+fn test_set_query() ? {
+  mut m := create_ring(["b", "a", "e", "d", "c"])?
+
+  id := TestID{id: "c", m: &m}
+  m["a"].set(id, 12345)?
+  assert m["c"].data == 12345
+
+  println(m)
+  data := m["e"].query(id)?
+  assert data == 12345
 }

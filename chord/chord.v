@@ -3,6 +3,7 @@ module chord
 struct Range<T> {
   from T
   to T
+  to_inclusive bool
 }
 
 pub fn (r Range<T>) contains(value T) bool {
@@ -11,17 +12,19 @@ pub fn (r Range<T>) contains(value T) bool {
   }
 
   if r.from < r.to {
-    b := r.from < value && value < r.to
-    return b
+    if r.to_inclusive {
+      return r.from < value && value <= r.to
+    }
+    return r.from < value && value < r.to
   } else {
-    b := r.from < value || value < r.to
-    return b
+    return r.from < value || value < r.to
   }
 }
 
 struct Node<T> {
   id T
 mut:
+  data int
   successor T
   // vlang cant assign optional values in struct currently. vlang/v: #11293
   predecessor T
@@ -62,14 +65,32 @@ fn (mut n Node<T>) notify(id T) {
   // println("<< Node.notify(): ${id}")
 }
 
-fn (n Node<T>) find_successor(id T) T {
-  range := Range<T>{from: n.id, to: n.successor}
-  println(range)
+fn (n Node<T>) find_successor(id T) ?T {
+  range := Range<T>{from: n.id, to: n.successor, to_inclusive: true}
   if range.contains(id) {
     return n.successor
   }
+  mut comm := n.id.get_communicator(n.successor)?
+  return comm.find_successor(id)
+}
 
-  return n.id
+fn (n Node<T>) query(id T) ?int {
+  successor := n.find_successor(id)?
+  if successor != n.id {
+    mut comm := n.id.get_communicator(successor)?
+    return comm.query(id)
+  }
+  return n.data
+}
+
+fn (mut n Node<T>) set(id T, data int) ? {
+  successor := n.find_successor(id)?
+  if successor != n.id {
+    mut comm := n.id.get_communicator(successor)?
+    return comm.set(id, data)
+  }
+
+  n.data = data
 }
 
 fn join<T>(newid T, to T) ?Node<T> {
