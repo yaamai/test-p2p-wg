@@ -21,6 +21,7 @@ pub fn (r Range<T>) contains(value T) bool {
   }
 }
 
+// vlang generics does not allow multiple types?
 struct Node<T> {
   id T
 mut:
@@ -85,12 +86,14 @@ fn (n Node<T>) query(id T) ?int {
 
 fn (mut n Node<T>) set(id T, data int) ? {
   successor := n.find_successor(id)?
-  if successor != n.id {
-    mut comm := n.id.get_communicator(successor)?
-    return comm.set(id, data)
+  println("set: ${n.id} ${n.successor} ${successor.id}")
+  if n.id == successor {
+    n.data = data
+    return
   }
 
-  n.data = data
+  mut comm := n.id.get_communicator(successor)?
+  return comm.set(id, data)
 }
 
 fn join<T>(newid T, to T) ?Node<T> {
