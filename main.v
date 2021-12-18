@@ -6,6 +6,7 @@ import chord
 import json
 import net.http
 import net.urllib
+import time
 
 struct WireguardComm {
 pub mut:
@@ -14,11 +15,13 @@ pub mut:
 
 fn (c WireguardComm) get_url_by_id(id string) ?string {
   ips := c.dev.get_allowed_ips()
-  return "http://${ips[0]}"
+  url := "http://${ips[0]}:8080"
+  return url
 }
 
 fn (c WireguardComm) get_predecessor(id string) ?string {
   text := http.get(c.get_url_by_id(id)? + "/predecessor")?.text
+  println("get_predecessor(): ${text}")
   if text.len == 0 {
     return error('')
   }
@@ -30,6 +33,7 @@ fn (c WireguardComm) find_successor(id string, target string) ?string {
 }
 
 fn (c WireguardComm) notify(id string, data string) ? {
+  println("notify(): ${id} ${data}")
   http.post(c.get_url_by_id(id)? + "/notify", data)?
 }
 
@@ -72,7 +76,7 @@ fn (mut h ChordHandler) handle(req http.Request) http.Response {
 
 fn (h ChordHandler) handle_get_predecessor(req http.Request, url urllib.URL) http.Response {
   if h.node.has_predecessor {
-    return http.new_response(text: "")
+    return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
   }
   return http.new_response(text: h.node.predecessor)
 }
@@ -82,12 +86,12 @@ fn (h ChordHandler) handle_get_successor(req http.Request, url urllib.URL) http.
   if succ := h.node.find_successor(target) {
     return http.new_response(text: succ)
   }
-  return http.new_response(text: "")
+  return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
 }
 
 fn (mut h ChordHandler) handle_notify(req http.Request, url urllib.URL) http.Response {
   h.node.notify(req.data)
-  return http.new_response(text: "")
+  return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
 }
 
 fn (h ChordHandler) handle_query(req http.Request, url urllib.URL) http.Response {
@@ -98,7 +102,7 @@ fn (h ChordHandler) handle_query(req http.Request, url urllib.URL) http.Response
   if val := h.node.query(names[2]) {
     return http.new_response(text: val)
   }
-  return http.new_response(text: "")
+  return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
 }
 
 fn (mut h ChordHandler) handle_store(req http.Request, url urllib.URL) http.Response {
@@ -107,9 +111,9 @@ fn (mut h ChordHandler) handle_store(req http.Request, url urllib.URL) http.Resp
     return http.new_response(text: "invalid path")
   }
   h.node.set(names[2], req.data) or {
-    return http.new_response(text: "")
+    return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
   }
-  return http.new_response(text: "")
+  return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
 }
 
 
@@ -159,7 +163,7 @@ mut:
   remote_public_key string
 }
 
-fn do_join(p JoinConfig) ?wireguard.Device {
+fn join(p JoinConfig) ?wireguard.Device {
   mut dev := wireguard.new_device("sss0", true)?
   dev.set_private_key(p.private_key)
   dev.set_listen_port(43617)
@@ -188,7 +192,10 @@ sudo ip netns exec siteA ip link set dev lo up
 sudo ip netns exec siteB ip link set dev lo up
 */
 
-fn node_loop() {
+fn http_server_loop(mut server http.Server) {
+    server.listen_and_serve() or {
+      return
+    }
 }
 
 fn do_bootstrap() ? {
@@ -196,19 +203,49 @@ fn do_bootstrap() ? {
 
     mut dev := bootstrap()?
     comm := WireguardComm{dev: &dev}
-    node := chord.bootstrap(dev.get_public_key(), store, comm)
-    do_genpeer()?
+    mut node := chord.bootstrap(dev.get_public_key(), store, comm)
+    os.write_file("peer.json", do_genpeer()?)?
 
     handler := ChordHandler{node: node}
-    mut server := http.Server{handler: handler}
-    server.listen_and_serve()?
+    mut server := &http.Server{handler: handler}
+
+    go http_server_loop(mut server)
+
+    for {
+      node.stabilize() or {
+        println("stabilize() failed: ${err}")
+      }
+      time.sleep(5*time.second)
+    }
 }
 
-fn do_genpeer() ? {
+fn do_genpeer() ?string {
     mut dev := wireguard.new_device("sss0", true)?
     mut config := generate_peer_confg(mut dev)?
     config.remote_addr = "10.0.0.1"
-    println(json.encode(config))
+    return json.encode(config)
+}
+
+fn do_join() ? {
+  s := os.read_file("peer.json")?
+  config := json.decode(JoinConfig, s)?
+  mut dev := join(config)?
+
+  store := TestStore{}
+  comm := WireguardComm{dev: &dev}
+  mut node := chord.bootstrap(dev.get_public_key(), store, comm)
+
+  handler := ChordHandler{node: node}
+  mut server := &http.Server{handler: handler}
+
+  go http_server_loop(mut server)
+
+  for {
+    node.stabilize() or {
+      println("stabilize() failed: ${err}")
+    }
+    time.sleep(1*time.second)
+  }
 }
 
 fn main() {
@@ -225,8 +262,7 @@ fn main() {
   } else if action == "genpeer" {
     do_genpeer()?
   } else if action == "join" {
-    config := json.decode(JoinConfig, os.args[2])?
-    do_join(config)?
+    do_join()?
   }
 
   // println(k.base64())
