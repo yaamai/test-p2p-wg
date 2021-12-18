@@ -109,13 +109,16 @@ fn (d Device) sync() ? {
   }
 }
 
-pub fn (d Device) get_allowed_ips() []string {
-  mut result := []string{}
+pub fn (d Device) get_allowed_ips() map[string]string {
+  mut result := map[string]string{}
   b := []byte{len: 15}
+  public := []byte{len: 45}
+
   for peer := d.base.first_peer; peer != 0; peer = peer.next_peer {
     for ip := peer.first_allowedip; ip != 0; ip = ip.next_allowedip {
       C.inet_ntop(net.AddrFamily.ip, &ip.ip4, b.data, b.len)
-      result << string(b)
+      C.wg_key_to_base64(public.data, &peer.public_key[0])
+      result[string(public)] = string(b)
     }
   }
   return result

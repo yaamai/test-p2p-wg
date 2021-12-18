@@ -15,13 +15,20 @@ pub mut:
 
 fn (c WireguardComm) get_url_by_id(id string) ?string {
   ips := c.dev.get_allowed_ips()
-  url := "http://${ips[0]}:8080"
-  return url
+  println(ips)
+  if ip := ips[id] {
+    return "http://${ip}:8080"
+  }
+
+  self_ip := netlink.get_interface_addr(c.dev.get_index())?
+  return "http://${self_ip}:8080"
 }
 
 fn (c WireguardComm) get_predecessor(id string) ?string {
-  text := http.get(c.get_url_by_id(id)? + "/predecessor")?.text
-  println("get_predecessor(): ${text}")
+  url := c.get_url_by_id(id)? + "/predecessor"
+  text := http.get(url)?.text
+  println("get_predecessor(): ${url} -> ${text}")
+
   if text.len == 0 {
     return error('')
   }
@@ -29,12 +36,17 @@ fn (c WireguardComm) get_predecessor(id string) ?string {
 }
 
 fn (c WireguardComm) find_successor(id string, target string) ?string {
-  return http.get(c.get_url_by_id(id)? + "/successor" + "?target=" + target)?.text
+  url := c.get_url_by_id(id)? + "/successor" + "?target=" + target
+  text := http.get(url)?.text
+  println("find_successor(): ${url} -> ${text}")
+
+  return text
 }
 
 fn (c WireguardComm) notify(id string, data string) ? {
-  println("notify(): ${id} ${data}")
-  http.post(c.get_url_by_id(id)? + "/notify", data)?
+  url := c.get_url_by_id(id)? + "/notify"
+  println("notify(): ${id} ${data} -> ${url}")
+  http.post(url, data)?
 }
 
 fn (c WireguardComm) query(id string, key string) ?string {
@@ -60,7 +72,7 @@ fn (mut s TestStore) set(key string, val string) ? {
 
 struct ChordHandler {
 mut:
-  node chord.Node
+  node &chord.Node
 }
 fn (mut h ChordHandler) handle(req http.Request) http.Response {
   url := urllib.parse(req.url) or { return http.Response{} }
@@ -75,7 +87,7 @@ fn (mut h ChordHandler) handle(req http.Request) http.Response {
 }
 
 fn (h ChordHandler) handle_get_predecessor(req http.Request, url urllib.URL) http.Response {
-  if h.node.has_predecessor {
+  if !h.node.has_predecessor {
     return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
   }
   return http.new_response(text: h.node.predecessor)
@@ -90,6 +102,7 @@ fn (h ChordHandler) handle_get_successor(req http.Request, url urllib.URL) http.
 }
 
 fn (mut h ChordHandler) handle_notify(req http.Request, url urllib.URL) http.Response {
+  println("receive notify ${req.data}")
   h.node.notify(req.data)
   return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
 }
@@ -206,7 +219,7 @@ fn do_bootstrap() ? {
     mut node := chord.bootstrap(dev.get_public_key(), store, comm)
     os.write_file("peer.json", do_genpeer()?)?
 
-    handler := ChordHandler{node: node}
+    handler := ChordHandler{node: &node}
     mut server := &http.Server{handler: handler}
 
     go http_server_loop(mut server)
@@ -215,6 +228,8 @@ fn do_bootstrap() ? {
       node.stabilize() or {
         println("stabilize() failed: ${err}")
       }
+
+      println("${node.successor} <-> ${node.predecessor}")
       time.sleep(5*time.second)
     }
 }
@@ -233,9 +248,9 @@ fn do_join() ? {
 
   store := TestStore{}
   comm := WireguardComm{dev: &dev}
-  mut node := chord.bootstrap(dev.get_public_key(), store, comm)
+  mut node := chord.join(dev.get_public_key(), config.remote_public_key, store, comm)?
 
-  handler := ChordHandler{node: node}
+  handler := ChordHandler{node: &node}
   mut server := &http.Server{handler: handler}
 
   go http_server_loop(mut server)
@@ -244,7 +259,9 @@ fn do_join() ? {
     node.stabilize() or {
       println("stabilize() failed: ${err}")
     }
-    time.sleep(1*time.second)
+
+    println("${node.successor} <-> ${node.predecessor}")
+    time.sleep(5*time.second)
   }
 }
 
