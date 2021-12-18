@@ -63,26 +63,33 @@ fn test_stabilize() ? {
   n.stabilize()?
 }
 
-fn test_join_two_peer() ? {
+fn test_join_peers() ? {
   mut m := map[string]&Node<TestID>{}
 
-  mut n1 := bootstrap<TestID>(TestID{id: "a", m: &m})
-  m["a"] = &n1
-  println("boostrap a: ${m}")
+  mut ids := ["b", "a", "e", "d", "c"]
 
-  mut n2 := join<TestID>(TestID{id: "b", m: &m}, n1.id)?
-  m["b"] = &n2
-  println("boostrap b: ${m}")
+  mut first := bootstrap<TestID>(TestID{id: ids[0], m: &m})
+  m[ids[0]] = &first
 
-  for i := 0; i < 10; i++ {
-    n1.stabilize()?
-    n2.stabilize()?
+  for id in ids[1..] {
+    mut n := join<TestID>(TestID{id: id, m: &m}, first.id)?
+    m[id] = &n
   }
 
-  assert n1.successor == n2.id
-  assert n1.predecessor == n2.id
-  assert n2.successor == n1.id
-  assert n2.predecessor == n1.id
+  for i := 0; i < 10; i++ {
+    for id in ids {
+      m[id].stabilize()?
+    }
+  }
+  println(m)
+
+  ids.sort()
+  for idx, id in ids {
+    next := if idx < ids.len-1 { ids[idx+1] } else { ids[0] }
+    prev := if idx > 0 { ids[idx-1] } else { ids[ids.len-1] }
+    assert m[id].successor == m[next].id
+    assert m[id].predecessor == m[prev].id
+  }
 }
 
 fn test_join_three_peer() ? {
