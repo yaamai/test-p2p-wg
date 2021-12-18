@@ -2,7 +2,11 @@ module main
 import os
 import wireguard
 import netlink
+import chord
 import json
+
+struct ApiServer {
+}
 
 fn bootstrap() ?wireguard.Device {
   public_key, private_key := wireguard.new_key()?.base64()

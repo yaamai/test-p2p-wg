@@ -16,41 +16,32 @@ fn test_range_inclusive() {
   assert r1.contains("c")
 }
 
-struct TestID {
-  id string
-mut:
-  m &map[string]&Node<TestID>
+struct TestComm {
+pub mut:
+  m map[string]&Node
 }
 
-fn (a TestID) < (b TestID) bool {
-	return a.id < b.id
-}
-
-fn (a TestID) str () string {
-	return a.id
-}
-
-fn (a TestID) get_predecessor() ?TestID {
-  if !a.m[a.id].has_predecessor {
+fn (c TestComm) get_predecessor(id string) ?string {
+  if !c.m[id].has_predecessor {
     return error('')
   }
-  return a.m[a.id].predecessor
+  return c.m[id].predecessor
 }
 
-fn (a TestID) find_successor(id TestID) ?TestID {
-  return a.m[a.id].find_successor(id)
+fn (c TestComm) find_successor(id string, target string) ?string {
+  return c.m[id].find_successor(target)
 }
 
-fn (mut a TestID) notify(id TestID) {
-  a.m[a.id].notify(id)
+fn (mut c TestComm) notify(id string, target string) ? {
+  c.m[id].notify(target)
 }
 
-fn (a TestID) query(id TestID) ?string {
-  return a.m[a.id].query(id)
+fn (c TestComm) query(id string, key string) ?string {
+  return c.m[id].query(key)
 }
 
-fn (mut a TestID) set(id TestID, data string) ? {
-  a.m[a.id].set(id, data)?
+fn (mut c TestComm) store(id string, key string, data string) ? {
+  c.m[id].set(key, data)?
 }
 
 struct TestStore {
@@ -70,40 +61,39 @@ fn (mut s TestStore) set(key string, val string) ? {
 
 fn test_bootstrap() {
   mut s := TestStore{}
-  mut m := map[string]&Node<TestID>{}
-  mut n := bootstrap<TestID>(TestID{id: "a", m: &m}, s)
-  m["a"] = &n
+  mut c := TestComm{m: map[string]&Node{}}
+  mut n := bootstrap("a", s, c)
+  c.m["a"] = &n
 }
 
 fn test_stabilize() ? {
   mut s := TestStore{}
-  mut m := map[string]&Node<TestID>{}
-  mut n := bootstrap<TestID>(TestID{id: "a", m: &m}, s)
-  m["a"] = &n
+  mut c := TestComm{m: map[string]&Node{}}
+  mut n := bootstrap("a", s, c)
+  c.m["a"] = &n
   n.stabilize()?
 }
 
-fn create_ring(ids []string) ?(map[string]&Node<TestID>) {
+fn create_ring(ids []string) ?(TestComm) {
   mut s := TestStore{}
-  mut m := map[string]&Node<TestID>{}
-  mut first := bootstrap<TestID>(TestID{id: ids[0], m: &m}, s)
+  mut c := TestComm{m: map[string]&Node{}}
+  mut first := bootstrap(ids[0], s, c)
 
-  m[ids[0]] = &first
+  c.m[ids[0]] = &first
 
-  for id_str in ids[1..] {
+  for id in ids[1..] {
     // TODO: if TestID construct in function argument of join, crash occured when access to id.m
-    id := TestID{id: id_str, m: &m}
-    mut n := join<TestID>(id, first.id, s)?
-    m[id_str] = &n
+    mut n := join(id, first.id, s, c)?
+    c.m[id] = &n
   }
 
   for i := 0; i < ids.len; i++ {
     for id in ids {
-      m[id].stabilize()?
+      c.m[id].stabilize()?
     }
   }
 
-  return m
+  return c
 }
 
 
@@ -117,25 +107,22 @@ fn test_join_peers() ? {
   ]
 
   for mut ids in tt {
-    m := create_ring(ids)?
+    c := create_ring(ids)?
 
     ids.sort()
     for idx, id in ids {
       next := if idx < ids.len-1 { ids[idx+1] } else { ids[0] }
       prev := if idx > 0 { ids[idx-1] } else { ids[ids.len-1] }
-      assert m[id].successor == m[next].id
-      assert m[id].predecessor == m[prev].id
+      assert c.m[id].successor == c.m[next].id
+      assert c.m[id].predecessor == c.m[prev].id
     }
   }
 }
 
 fn test_set_query() ? {
-  mut m := create_ring(["b", "a", "e", "d", "c"])?
+  mut c := create_ring(["b", "a", "e", "d", "c"])?
 
-  id := TestID{id: "c", m: &m}
-  m["a"].set(id, "12345")?
-
-  println(m)
-  data := m["e"].query(id)?
+  c.m["a"].set("c", "12345")?
+  data := c.m["e"].query("c")?
   assert data == "12345"
 }

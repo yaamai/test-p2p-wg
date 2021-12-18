@@ -6,6 +6,14 @@ interface Store {
   get(string) ?string
   set(string, string) ?
 }
+
+interface Communicator {
+  get_predecessor(string) ?string
+  find_successor(string, string) ?string
+  notify(string, string) ?
+  query(string, string) ?string
+  store(string, string, string) ?
+}
   
 
 struct Range<T> {
@@ -30,38 +38,38 @@ pub fn (r Range<T>) contains(value T) bool {
 }
 
 // vlang generics does not allow multiple types?
-struct Node<T> {
-  id T
-mut:
+struct Node {
+  id string
   store Store
-
-  successor T
+  comm Communicator
+mut:
+  successor string
   // vlang cant assign optional values in struct currently. vlang/v: #11293
-  predecessor T
+  predecessor string
   has_predecessor bool
 }
 
-fn bootstrap<T>(id T, store Store) Node<T> {
-  return Node<T>{id: id, successor: id, store: store}
+fn bootstrap(id string, store Store, comm Communicator) Node {
+  return Node{id: id, successor: id, store: store, comm: comm}
 }
 
-fn (mut n Node<T>) stabilize() ? {
+fn (mut n Node) stabilize() ? {
   // println(">> ${n}.stabilize():")
-  if pred := n.successor.get_predecessor() {
-    range := Range<T>{from: n.id, to: n.successor}
+  if pred := n.comm.get_predecessor(n.successor) {
+    range := Range<string>{from: n.id, to: n.successor}
     if range.contains(pred) {
       n.successor = pred
     }
   }
 
-  n.successor.notify(n.id)
+  n.comm.notify(n.successor, n.id)?
   // println("<< ${n}.stabilize():")
 }
 
-fn (mut n Node<T>) notify(id T) {
+fn (mut n Node) notify(id string) {
   // println(">> ${n}.notify(): ${id}")
   if n.has_predecessor {
-    range := Range<T>{from: n.predecessor, to: n.id}
+    range := Range<string>{from: n.predecessor, to: n.id}
     if range.contains(id) {
       n.predecessor = id
       n.has_predecessor = true
@@ -73,37 +81,37 @@ fn (mut n Node<T>) notify(id T) {
   // println("<< Node.notify(): ${id}")
 }
 
-fn (n Node<T>) find_successor(id T) ?T {
-  range := Range<T>{from: n.id, to: n.successor, to_inclusive: true}
+fn (n Node) find_successor(id string) ?string {
+  range := Range<string>{from: n.id, to: n.successor, to_inclusive: true}
   if range.contains(id) {
     return n.successor
   }
-  return n.successor.find_successor(id)
+  return n.comm.find_successor(n.successor, id)
 }
 
-fn (n Node<T>) query(id T) ?string {
+fn (n Node) query(id string) ?string {
   successor := n.find_successor(id)?
   if successor != n.id {
-    return successor.query(id)
+    return n.comm.query(n.successor, id)
   }
   return n.store.get(id.str())
 }
 
-fn (mut n Node<T>) set(id T, data string) ? {
+fn (mut n Node) set(id string, data string) ? {
   mut successor := n.find_successor(id)?
-  println("set: ${n.id} ${n.successor} ${successor.id}")
-  if n.id == successor {
+  // println("set: ${n.id} ${n.successor} ${successor}")
+  if successor == n.id {
     n.store.set(id.str(), data)?
     return
   }
 
-  return successor.set(id, data)
+  return n.comm.store(n.successor, id, data)
 }
 
-fn join<T>(newid T, to T, store Store) ?Node<T> {
+fn join(newid string, to string, store Store, comm Communicator) ?Node {
   // comm := to.get_communicator(newid)?
   // below causes infinity loop or compile error...
   // succ := comm.find_successor<T>(newid)
   // succ := comm.find_successor(newid)
-  return Node<T>{id: newid, successor: to, store: store}
+  return Node{id: newid, successor: to, store: store, comm: comm}
 }
