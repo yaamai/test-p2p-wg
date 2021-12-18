@@ -66,55 +66,35 @@ fn test_stabilize() ? {
 fn test_join_peers() ? {
   mut m := map[string]&Node<TestID>{}
 
-  mut ids := ["b", "a", "e", "d", "c"]
+  mut tt := [
+    ["a"],
+    ["b", "a"],
+    ["b", "a", "c"],
+    ["b", "a", "e", "d", "c"],
+  ]
 
-  mut first := bootstrap<TestID>(TestID{id: ids[0], m: &m})
-  m[ids[0]] = &first
+  for mut ids in tt {
 
-  for id in ids[1..] {
-    mut n := join<TestID>(TestID{id: id, m: &m}, first.id)?
-    m[id] = &n
-  }
+    mut first := bootstrap<TestID>(TestID{id: ids[0], m: &m})
+    m[ids[0]] = &first
 
-  for i := 0; i < 10; i++ {
-    for id in ids {
-      m[id].stabilize()?
+    for id in ids[1..] {
+      mut n := join<TestID>(TestID{id: id, m: &m}, first.id)?
+      m[id] = &n
+    }
+
+    for i := 0; i < ids.len; i++ {
+      for id in ids {
+        m[id].stabilize()?
+      }
+    }
+
+    ids.sort()
+    for idx, id in ids {
+      next := if idx < ids.len-1 { ids[idx+1] } else { ids[0] }
+      prev := if idx > 0 { ids[idx-1] } else { ids[ids.len-1] }
+      assert m[id].successor == m[next].id
+      assert m[id].predecessor == m[prev].id
     }
   }
-  println(m)
-
-  ids.sort()
-  for idx, id in ids {
-    next := if idx < ids.len-1 { ids[idx+1] } else { ids[0] }
-    prev := if idx > 0 { ids[idx-1] } else { ids[ids.len-1] }
-    assert m[id].successor == m[next].id
-    assert m[id].predecessor == m[prev].id
-  }
-}
-
-fn test_join_three_peer() ? {
-  mut m := map[string]&Node<TestID>{}
-
-  mut n1 := bootstrap<TestID>(TestID{id: "a", m: &m})
-  m["a"] = &n1
-
-  mut n2 := join<TestID>(TestID{id: "b", m: &m}, n1.id)?
-  m["b"] = &n2
-
-  mut n3 := join<TestID>(TestID{id: "c", m: &m}, n1.id)?
-  m["c"] = &n3
-
-  for i := 0; i < 10; i++ {
-    n1.stabilize()?
-    n2.stabilize()?
-    n3.stabilize()?
-  }
-
-  println(m)
-  assert n1.successor == n2.id
-  assert n1.predecessor == n3.id
-  assert n2.successor == n3.id
-  assert n2.predecessor == n1.id
-  assert n3.successor == n1.id
-  assert n3.predecessor == n2.id
 }
