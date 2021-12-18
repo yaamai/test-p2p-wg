@@ -109,6 +109,18 @@ fn (d Device) sync() ? {
   }
 }
 
+pub fn (d Device) get_allowed_ips() []string {
+  mut result := []string{}
+  b := []byte{len: 15}
+  for peer := d.base.first_peer; peer != 0; peer = peer.next_peer {
+    for ip := peer.first_allowedip; ip != 0; ip = ip.next_allowedip {
+      C.inet_ntop(net.AddrFamily.ip, &ip.ip4, b.data, b.len)
+      result << string(b)
+    }
+  }
+  return result
+}
+
 pub fn (d Device) get_index() u32 {
   return d.base.ifindex
 }

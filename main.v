@@ -4,9 +4,63 @@ import wireguard
 import netlink
 import chord
 import json
+import net.http
+import net.urllib
 
-struct ApiServer {
+struct WireguardComm {
+pub mut:
+  dev &wireguard.Device
 }
+
+fn (c WireguardComm) get_url_by_id(id string) ?string {
+  ips := c.dev.get_allowed_ips()
+  return "http://${ips[0]}"
+}
+
+fn (c WireguardComm) get_predecessor(id string) ?string {
+  return http.get(c.get_url_by_id(id)? + "/predecessor")?.text
+}
+
+fn (c WireguardComm) find_successor(id string, target string) ?string {
+  return http.get(c.get_url_by_id(id)? + "/successor" + "?target=" + target)?.text
+}
+
+fn (c WireguardComm) notify(id string, data string) ? {
+  http.post(c.get_url_by_id(id)? + "/notify", data)?
+}
+
+fn (c WireguardComm) query(id string, key string) ?string {
+  return http.get(c.get_url_by_id(id)? + "/kvs/" + key)?.text
+}
+
+fn (c WireguardComm) store(id string, key string, val string) ? {
+  http.post(c.get_url_by_id(id)? + "/kvs" + key, val)?
+}
+
+struct TestStore {
+mut:
+  m map[string]string
+}
+
+fn (s TestStore) get(key string) ?string {
+  return s.m[key]
+}
+
+fn (mut s TestStore) set(key string, val string) ? {
+  s.m[key] = val
+}
+
+struct ChordHandler {
+  node chord.Node
+}
+fn (h ChordHandler) handle(req http.Request) http.Response {
+  url := urllib.parse(req.url) or { return http.Response{} }
+  return match url.path {
+    "/predecessor" { http.new_response(text: json.encode(h.node.predecessor)) }
+    else { http.Response{} }
+  }
+}
+
 
 fn bootstrap() ?wireguard.Device {
   public_key, private_key := wireguard.new_key()?.base64()
@@ -31,7 +85,7 @@ fn generate_peer_confg(mut dev wireguard.Device) ?JoinConfig {
   peer := wireguard.new_peer(key: public_key, allowed_ip: peer_addr)?
   dev.set_peer(peer)
   dev.apply()?
-  netlink.add_if_route(peer_addr, 32, dev.get_index())?
+  netlink.add_if_route(peer_addr, 32, dev.get_index(), true)?
 
   return JoinConfig {
     private_key: private_key,
@@ -62,7 +116,7 @@ fn do_join(p JoinConfig) ?wireguard.Device {
   dev.apply()?
   netlink.set_interface_up(dev.get_index())?
   netlink.add_interface_addr(dev.get_index(), p.tunnel_addr, 32)?
-  netlink.add_if_route(p.remote_tunnel_addr, 32, dev.get_index())?
+  netlink.add_if_route(p.remote_tunnel_addr, 32, dev.get_index(), true)?
 
   return dev
 }
@@ -83,6 +137,26 @@ sudo ip netns exec siteA ip link set dev lo up
 sudo ip netns exec siteB ip link set dev lo up
 */
 
+fn do_bootstrap() ? {
+    store := TestStore{}
+
+    mut dev := bootstrap()?
+    comm := WireguardComm{dev: &dev}
+    node := chord.bootstrap(dev.get_public_key(), store, comm)
+    do_genpeer()?
+
+    handler := ChordHandler{node: node}
+    mut server := http.Server{handler: handler}
+    server.listen_and_serve()?
+}
+
+fn do_genpeer() ? {
+    mut dev := wireguard.new_device("sss0", true)?
+    mut config := generate_peer_confg(mut dev)?
+    config.remote_addr = "10.0.0.1"
+    println(json.encode(config))
+}
+
 fn main() {
 
   if os.args.len < 2 {
@@ -92,12 +166,10 @@ fn main() {
   action := os.args[1]
 
   if action == "bootstrap" {
-    mut dev := bootstrap()?
+    do_bootstrap()?
+    do_genpeer()?
   } else if action == "genpeer" {
-    mut dev := wireguard.new_device("sss0", true)?
-    mut config := generate_peer_confg(mut dev)?
-    config.remote_addr = "10.0.0.1"
-    println(json.encode(config))
+    do_genpeer()?
   } else if action == "join" {
     config := json.decode(JoinConfig, os.args[2])?
     do_join(config)?

@@ -42,14 +42,14 @@ struct Node {
   id string
   store Store
   comm Communicator
-mut:
+pub mut:
   successor string
   // vlang cant assign optional values in struct currently. vlang/v: #11293
   predecessor string
   has_predecessor bool
 }
 
-fn bootstrap(id string, store Store, comm Communicator) Node {
+pub fn bootstrap(id string, store Store, comm Communicator) Node {
   return Node{id: id, successor: id, store: store, comm: comm}
 }
 
@@ -108,7 +108,7 @@ fn (mut n Node) set(id string, data string) ? {
   return n.comm.store(n.successor, id, data)
 }
 
-fn join(newid string, to string, store Store, comm Communicator) ?Node {
+pub fn join(newid string, to string, store Store, comm Communicator) ?Node {
   // comm := to.get_communicator(newid)?
   // below causes infinity loop or compile error...
   // succ := comm.find_successor<T>(newid)

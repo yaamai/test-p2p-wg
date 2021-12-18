@@ -1,7 +1,7 @@
 module netlink
 import net
 
-pub fn add_if_route(addr string, prefix int, ifindex u32) ? {
+pub fn add_if_route(addr string, prefix int, ifindex u32, allow_exists bool) ? {
   req := C.rtmsg_req{}
   ctx := C.context{}
 
@@ -18,7 +18,10 @@ pub fn add_if_route(addr string, prefix int, ifindex u32) ? {
   C.send_request(&ctx, &req)
   rc = C.recv_response(&ctx)
   if rc < 0 {
-    return error('receive failed response with netlink: ${rc}')
+    // -17 == EEXISTS
+    if !allow_exists || rc != -17 {
+      return error('receive failed response with netlink: ${rc}')
+    }
   }
   C.close_socket(&ctx)
 }
