@@ -16,7 +16,7 @@ pub fn add_if_route(addr string, prefix int, ifindex u32, allow_exists bool) ? {
 
   C.prepare_socket(&ctx)
   C.send_request(&ctx, &req)
-  rc = C.recv_response(&ctx)
+  rc = C.recv_response(&ctx, 0, 0, 0)
   if rc < 0 {
     // -17 == EEXISTS
     if !allow_exists || rc != -17 {
@@ -47,9 +47,30 @@ pub fn add_interface_addr(ifindex u32, addr string, prefix int) ? {
   }
 
   family := byte(net.AddrFamily.ip)
-  C.create_ifaddrmsg_req(&req, rtm_newaddr, ifindex, family, &addr_buf[0], 4, prefix)
+  C.create_ifaddrmsg_new_req(&req, ifindex, family, &addr_buf[0], 4, prefix)
 
   C.prepare_socket(&ctx)
   C.send_request(&ctx, &req)
   C.close_socket(&ctx)
+}
+
+pub fn get_interface_addr(ifindex u32) ?string {
+  req := C.ifaddrmsg_req{}
+  ctx := C.context{}
+
+  family := byte(net.AddrFamily.ip)
+  C.create_ifaddrmsg_get_req(&req, ifindex, family)
+
+  C.prepare_socket(&ctx)
+  C.send_request(&ctx, &req)
+  addr_buf := []byte{len: 4}
+  rc := C.recv_response(&ctx, 2, &addr_buf[0], 4)
+  if rc < 0 {
+    return error('receive failed response with netlink: ${rc}')
+  }
+  C.close_socket(&ctx)
+
+  b := []byte{len: 15}
+  C.inet_ntop(net.AddrFamily.ip, &addr_buf[0], b.data, b.len)
+  return string(b)
 }

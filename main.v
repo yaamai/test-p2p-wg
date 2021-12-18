@@ -249,6 +249,7 @@ fn do_join() ? {
 }
 
 fn main() {
+  println(netlink.get_interface_addr(2)?)
 
   if os.args.len < 2 {
     println(error('insufficient command-line arguments'))

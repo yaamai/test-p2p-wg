@@ -18,9 +18,10 @@ struct C.context {}
 
 fn C.create_rtmsg_req(req &C.rtmsg_req, typ u16, family u8, addr &byte, addrlen u8, prefix u8, ifindex int) int
 fn C.create_ifinfomsg_req(req &C.ifinfomsg_req, typ u16, ifindex int, flags int) int
-fn C.create_ifaddrmsg_req(req &C.ifaddrmsg_req, typ u16, ifindex int, family u8, addr &byte, addrlen u8, prefix u8) int
+fn C.create_ifaddrmsg_new_req(req &C.ifaddrmsg_req, ifindex int, family u8, addr &byte, addrlen u8, prefix u8) int
+fn C.create_ifaddrmsg_get_req(req &C.ifaddrmsg_req, ifindex int, family u8) int
 
 fn C.prepare_socket(ctx &C.context) int
-fn C.recv_response(ctx &C.context) int
+fn C.recv_response(ctx &C.context, typ u16, buf &byte, buflen int) int
 fn C.send_request(ctx &C.context, req voidptr) int
 fn C.close_socket(ctx &C.context) int

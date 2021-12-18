@@ -36,7 +36,7 @@ int create_rtmsg_req(rtmsg_req* req, unsigned short type, unsigned char family, 
 int create_ifinfomsg_req(ifinfomsg_req* req, unsigned short type, int ifindex, unsigned int flags);
 int create_ifaddrmsg_req(ifaddrmsg_req* req, unsigned short type, int ifindex, unsigned char family, unsigned char* addr, unsigned char addrlen, unsigned char prefix);
 int prepare_socket(context* ctx);
-int recv_response(context* ctx);
+int recv_response(context* ctx, unsigned short typ, unsigned char* buf, unsigned int buflen);
 int send_request(context* ctx, void* req);
 int close_socket(context* ctx);
 
