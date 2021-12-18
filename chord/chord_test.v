@@ -16,44 +16,10 @@ fn test_range_inclusive() {
   assert r1.contains("c")
 }
 
-struct TestComm {
-mut:
-  n &Node<TestID>
-}
-
-fn (c TestComm) get_predecessor() ?TestID {
-  if !c.n.has_predecessor {
-    return error('')
-  }
-  return c.n.predecessor
-}
-
-fn (c TestComm) find_successor(id TestID) ?TestID {
-  return c.n.find_successor(id)
-}
-
-fn (mut c TestComm) notify(id TestID) {
-  c.n.notify(id)
-}
-
-fn (c TestComm) query(id TestID) ?int {
-  return c.n.query(id)
-}
-
-fn (mut c TestComm) set(id TestID, data int) ? {
-  c.n.set(id, data)?
-}
-
 struct TestID {
   id string
+mut:
   m &map[string]&Node<TestID>
-}
-
-fn (i TestID) get_communicator(to TestID) ?TestComm {
-  // println("TestID{${i.id}}.get_communicator(${to.id})")
-  unsafe {
-    return TestComm{n: i.m[to.id]}
-  }
 }
 
 fn (a TestID) < (b TestID) bool {
@@ -62,6 +28,29 @@ fn (a TestID) < (b TestID) bool {
 
 fn (a TestID) str () string {
 	return a.id
+}
+
+fn (a TestID) get_predecessor() ?TestID {
+  if !a.m[a.id].has_predecessor {
+    return error('')
+  }
+  return a.m[a.id].predecessor
+}
+
+fn (a TestID) find_successor(id TestID) ?TestID {
+  return a.m[a.id].find_successor(id)
+}
+
+fn (mut a TestID) notify(id TestID) {
+  a.m[a.id].notify(id)
+}
+
+fn (a TestID) query(id TestID) ?int {
+  return a.m[a.id].query(id)
+}
+
+fn (mut a TestID) set(id TestID, data int) ? {
+  a.m[a.id].set(id, data)?
 }
 
 fn test_bootstrap() {

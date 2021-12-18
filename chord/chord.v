@@ -38,16 +38,14 @@ fn bootstrap<T>(id T) Node<T> {
 
 fn (mut n Node<T>) stabilize() ? {
   // println(">> ${n}.stabilize():")
-  mut comm := n.id.get_communicator(n.successor)?
-  if pred := comm.get_predecessor() {
+  if pred := n.successor.get_predecessor() {
     range := Range<T>{from: n.id, to: n.successor}
     if range.contains(pred) {
       n.successor = pred
     }
   }
 
-  comm = n.id.get_communicator(n.successor)?
-  comm.notify(n.id)
+  n.successor.notify(n.id)
   // println("<< ${n}.stabilize():")
 }
 
@@ -71,29 +69,26 @@ fn (n Node<T>) find_successor(id T) ?T {
   if range.contains(id) {
     return n.successor
   }
-  mut comm := n.id.get_communicator(n.successor)?
-  return comm.find_successor(id)
+  return n.successor.find_successor(id)
 }
 
 fn (n Node<T>) query(id T) ?int {
   successor := n.find_successor(id)?
   if successor != n.id {
-    mut comm := n.id.get_communicator(successor)?
-    return comm.query(id)
+    return successor.query(id)
   }
   return n.data
 }
 
 fn (mut n Node<T>) set(id T, data int) ? {
-  successor := n.find_successor(id)?
+  mut successor := n.find_successor(id)?
   println("set: ${n.id} ${n.successor} ${successor.id}")
   if n.id == successor {
     n.data = data
     return
   }
 
-  mut comm := n.id.get_communicator(successor)?
-  return comm.set(id, data)
+  return successor.set(id, data)
 }
 
 fn join<T>(newid T, to T) ?Node<T> {
