@@ -15,7 +15,7 @@ fn C.wg_set_device(dev &C.wg_device) int
 fn C.wg_add_device(device_name &char) int
 fn C.wg_del_device(device_name &char) int
 fn C.wg_key_to_base64(base64 &char, key &byte)
-fn C.wg_key_from_base64(key &byte, base64 &char)
+fn C.wg_key_from_base64(key &byte, base64 &char) int
 fn C.wg_generate_private_key(private_key &byte)
 fn C.wg_generate_public_key(public_key &byte, private_key &byte)
 fn C.wg_key_is_zero(key &byte) bool

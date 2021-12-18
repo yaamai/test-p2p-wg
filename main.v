@@ -1,61 +1,16 @@
 module main
-import os
 import wireguard
+
+fn main() {
+}
+
+/*
+import os
 import netlink
 import chord
 import json
 import net.http
-import net.urllib
 import time
-
-struct WireguardComm {
-pub mut:
-  dev &wireguard.Device
-}
-
-fn (c WireguardComm) get_url_by_id(id string) ?string {
-  ips := c.dev.get_allowed_ips()
-  println(ips)
-  if ip := ips[id] {
-    return "http://${ip}:8080"
-  }
-
-  self_ip := netlink.get_interface_addr(c.dev.get_index())?
-  return "http://${self_ip}:8080"
-}
-
-fn (c WireguardComm) get_predecessor(id string) ?string {
-  url := c.get_url_by_id(id)? + "/predecessor"
-  text := http.get(url)?.text
-  println("get_predecessor(): ${url} -> ${text}")
-
-  if text.len == 0 {
-    return error('')
-  }
-  return text
-}
-
-fn (c WireguardComm) find_successor(id string, target string) ?string {
-  url := c.get_url_by_id(id)? + "/successor" + "?target=" + target
-  text := http.get(url)?.text
-  println("find_successor(): ${url} -> ${text}")
-
-  return text
-}
-
-fn (c WireguardComm) notify(id string, data string) ? {
-  url := c.get_url_by_id(id)? + "/notify"
-  println("notify(): ${id} ${data} -> ${url}")
-  http.post(url, data)?
-}
-
-fn (c WireguardComm) query(id string, key string) ?string {
-  return http.get(c.get_url_by_id(id)? + "/kvs/" + key)?.text
-}
-
-fn (c WireguardComm) store(id string, key string, val string) ? {
-  http.post(c.get_url_by_id(id)? + "/kvs" + key, val)?
-}
 
 struct TestStore {
 mut:
@@ -69,66 +24,6 @@ fn (s TestStore) get(key string) ?string {
 fn (mut s TestStore) set(key string, val string) ? {
   s.m[key] = val
 }
-
-struct ChordHandler {
-mut:
-  node &chord.Node
-}
-fn (mut h ChordHandler) handle(req http.Request) http.Response {
-  url := urllib.parse(req.url) or { return http.Response{} }
-  return match url.path {
-    "/predecessor" { h.handle_get_predecessor(req, url) }
-    "/successor" { h.handle_get_successor(req, url) }
-    "/notify" { h.handle_notify(req, url) }
-    "/kvs/" { h.handle_query(req, url) }
-    "/kvs" { h.handle_store(req, url) }
-    else { http.Response{} }
-  }
-}
-
-fn (h ChordHandler) handle_get_predecessor(req http.Request, url urllib.URL) http.Response {
-  if !h.node.has_predecessor {
-    return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
-  }
-  return http.new_response(text: h.node.predecessor)
-}
-
-fn (h ChordHandler) handle_get_successor(req http.Request, url urllib.URL) http.Response {
-  target := url.query().get("target")
-  if succ := h.node.find_successor(target) {
-    return http.new_response(text: succ)
-  }
-  return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
-}
-
-fn (mut h ChordHandler) handle_notify(req http.Request, url urllib.URL) http.Response {
-  println("receive notify ${req.data}")
-  h.node.notify(req.data)
-  return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
-}
-
-fn (h ChordHandler) handle_query(req http.Request, url urllib.URL) http.Response {
-  names := url.path.split("/")
-  if names.len != 3 || names[1] != "kvs" {
-    return http.new_response(text: "invalid path")
-  }
-  if val := h.node.query(names[2]) {
-    return http.new_response(text: val)
-  }
-  return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
-}
-
-fn (mut h ChordHandler) handle_store(req http.Request, url urllib.URL) http.Response {
-  names := url.path.split("/")
-  if names.len != 3 || names[1] != "kvs" {
-    return http.new_response(text: "invalid path")
-  }
-  h.node.set(names[2], req.data) or {
-    return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
-  }
-  return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
-}
-
 
 fn bootstrap() ?wireguard.Device {
   public_key, private_key := wireguard.new_key()?.base64()
@@ -188,22 +83,6 @@ fn join(p JoinConfig) ?wireguard.Device {
 
   return dev
 }
-
-/*
-sudo ip netns del siteA
-sudo ip netns del siteB
-sudo ip netns add siteA
-sudo ip netns add siteB
-sudo ip link add veth0 type veth peer name veth1
-sudo ip link set dev veth0 netns siteA
-sudo ip link set dev veth1 netns siteB
-sudo ip netns exec siteA ip addr add dev veth0 10.0.0.1/24
-sudo ip netns exec siteB ip addr add dev veth1 10.0.0.2/24
-sudo ip netns exec siteA ip link set dev veth0 up
-sudo ip netns exec siteB ip link set dev veth1 up
-sudo ip netns exec siteA ip link set dev lo up
-sudo ip netns exec siteB ip link set dev lo up
-*/
 
 fn http_server_loop(mut server http.Server) {
     server.listen_and_serve() or {
@@ -282,8 +161,21 @@ fn main() {
   } else if action == "join" {
     do_join()?
   }
-
-  // println(k.base64())
-  // peer := wireguard.new_peer("CPDlnyk0H7dgYNtmIoa1AAuD8ulJ2QMITrbzQi3aoW0=", "2.3.4.5", 43617)?
-  // dev.set_peer(peer)
 }
+*/
+/*
+sudo ip netns del siteA
+sudo ip netns del siteB
+sudo ip netns add siteA
+sudo ip netns add siteB
+sudo ip link add veth0 type veth peer name veth1
+sudo ip link set dev veth0 netns siteA
+sudo ip link set dev veth1 netns siteB
+sudo ip netns exec siteA ip addr add dev veth0 10.0.0.1/24
+sudo ip netns exec siteB ip addr add dev veth1 10.0.0.2/24
+sudo ip netns exec siteA ip link set dev veth0 up
+sudo ip netns exec siteB ip link set dev veth1 up
+sudo ip netns exec siteA ip link set dev lo up
+sudo ip netns exec siteB ip link set dev lo up
+*/
+
