@@ -37,7 +37,9 @@ struct TestID {
 }
 
 fn (i TestID) get_communicator(to TestID) ?TestComm {
-  return TestComm{n: i.m[to.id]}
+  unsafe {
+    return TestComm{n: i.m[to.id]}
+  }
 }
 
 fn (a TestID) < (b TestID) bool {
@@ -81,4 +83,31 @@ fn test_join_two_peer() ? {
   assert n1.predecessor == n2.id
   assert n2.successor == n1.id
   assert n2.predecessor == n1.id
+}
+
+fn test_join_three_peer() ? {
+  mut m := map[string]&Node<TestID>{}
+
+  mut n1 := bootstrap<TestID>(TestID{id: "a", m: &m})
+  m["a"] = &n1
+
+  mut n2 := join<TestID>(TestID{id: "b", m: &m}, n1.id)?
+  m["b"] = &n2
+
+  mut n3 := join<TestID>(TestID{id: "c", m: &m}, n1.id)?
+  m["c"] = &n3
+
+  for i := 0; i < 10; i++ {
+    n1.stabilize()?
+    n2.stabilize()?
+    n3.stabilize()?
+  }
+
+  println(m)
+  assert n1.successor == n2.id
+  assert n1.predecessor == n3.id
+  assert n2.successor == n3.id
+  assert n2.predecessor == n1.id
+  assert n3.successor == n1.id
+  assert n3.predecessor == n2.id
 }
