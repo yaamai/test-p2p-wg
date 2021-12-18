@@ -1,5 +1,13 @@
 module chord
 
+// currently(2021/12) vlang does not support multiple template variables
+// and interface that referencing self are also not supported.
+interface Store {
+  get(string) ?string
+  set(string, string) ?
+}
+  
+
 struct Range<T> {
   from T
   to T
@@ -25,15 +33,16 @@ pub fn (r Range<T>) contains(value T) bool {
 struct Node<T> {
   id T
 mut:
-  data int
+  store Store
+
   successor T
   // vlang cant assign optional values in struct currently. vlang/v: #11293
   predecessor T
   has_predecessor bool
 }
 
-fn bootstrap<T>(id T) Node<T> {
-  return Node<T>{id: id, successor: id}
+fn bootstrap<T>(id T, store Store) Node<T> {
+  return Node<T>{id: id, successor: id, store: store}
 }
 
 fn (mut n Node<T>) stabilize() ? {
@@ -72,29 +81,29 @@ fn (n Node<T>) find_successor(id T) ?T {
   return n.successor.find_successor(id)
 }
 
-fn (n Node<T>) query(id T) ?int {
+fn (n Node<T>) query(id T) ?string {
   successor := n.find_successor(id)?
   if successor != n.id {
     return successor.query(id)
   }
-  return n.data
+  return n.store.get(id.str())
 }
 
-fn (mut n Node<T>) set(id T, data int) ? {
+fn (mut n Node<T>) set(id T, data string) ? {
   mut successor := n.find_successor(id)?
   println("set: ${n.id} ${n.successor} ${successor.id}")
   if n.id == successor {
-    n.data = data
+    n.store.set(id.str(), data)?
     return
   }
 
   return successor.set(id, data)
 }
 
-fn join<T>(newid T, to T) ?Node<T> {
+fn join<T>(newid T, to T, store Store) ?Node<T> {
   // comm := to.get_communicator(newid)?
   // below causes infinity loop or compile error...
   // succ := comm.find_successor<T>(newid)
   // succ := comm.find_successor(newid)
-  return Node<T>{id: newid, successor: to}
+  return Node<T>{id: newid, successor: to, store: store}
 }
