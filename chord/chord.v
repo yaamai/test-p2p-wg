@@ -1,16 +1,5 @@
 module chord
 
-interface Reference {
-  get_predecessor() ?Reference
-  find_successor(Reference) ?Reference
-  query(Reference) ?int
-  set(Reference, int) ?
-  notify(Reference) ?
-
-  equals(Reference) bool
-  greater(Reference) bool
-}
-
 struct Range<T> {
   from T
   to T
@@ -18,52 +7,54 @@ struct Range<T> {
 }
 
 pub fn (r Range<T>) contains(value T) bool {
-  if r.from.equals(r.to) {
+  if r.from == r.to {
     return true
   }
 
-  if r.from.greater(r.to) {
+  if r.from < r.to {
     if r.to_inclusive {
-      return r.from.greater(value) && (value.greater(r.to) || value.equals(r.to))
+      return r.from < value && value <= r.to
     }
-    return r.from.greater(value) && value.greater(r.to)
+    return r.from < value && value < r.to
   } else {
-    return r.from.greater(value) || value.greater(r.to)
+    return r.from < value || value < r.to
   }
 }
 
 // vlang generics does not allow multiple types?
-struct Node {
-  id Reference
+struct Node<T> {
+  id T
 mut:
   data int
-  successor Reference
+  successor T
   // vlang cant assign optional values in struct currently. vlang/v: #11293
-  predecessor Reference
+  predecessor T
   has_predecessor bool
 }
 
-fn bootstrap(id Reference) Node {
-  return Node{id: id, successor: id}
+fn bootstrap<T>(id T) Node<T> {
+  return Node<T>{id: id, successor: id}
 }
 
-fn (mut n Node) stabilize() ? {
+fn (mut n Node<T>) stabilize() ? {
   // println(">> ${n}.stabilize():")
-  if pred := n.successor.get_predecessor() {
-    range := Range<Reference>{from: n.id, to: n.successor}
+  mut comm := n.id.get_communicator(n.successor)?
+  if pred := comm.get_predecessor() {
+    range := Range<T>{from: n.id, to: n.successor}
     if range.contains(pred) {
       n.successor = pred
     }
   }
 
-  n.successor.notify(n.id)?
+  comm = n.id.get_communicator(n.successor)?
+  comm.notify(n.id)
   // println("<< ${n}.stabilize():")
 }
 
-fn (mut n Node) notify(id Reference) {
+fn (mut n Node<T>) notify(id T) {
   // println(">> ${n}.notify(): ${id}")
   if n.has_predecessor {
-    range := Range<Reference>{from: n.predecessor, to: n.id}
+    range := Range<T>{from: n.predecessor, to: n.id}
     if range.contains(id) {
       n.predecessor = id
       n.has_predecessor = true
@@ -75,37 +66,40 @@ fn (mut n Node) notify(id Reference) {
   // println("<< Node.notify(): ${id}")
 }
 
-fn (n Node) find_successor(id Reference) ?Reference {
-  range := Range<Reference>{from: n.id, to: n.successor, to_inclusive: true}
+fn (n Node<T>) find_successor(id T) ?T {
+  range := Range<T>{from: n.id, to: n.successor, to_inclusive: true}
   if range.contains(id) {
     return n.successor
   }
-  return n.successor.find_successor(id)
+  mut comm := n.id.get_communicator(n.successor)?
+  return comm.find_successor(id)
 }
 
-fn (n Node) query(id Reference) ?int {
+fn (n Node<T>) query(id T) ?int {
   successor := n.find_successor(id)?
-  if ! successor.equals(n.id) {
-    return successor.query(id)
+  if successor != n.id {
+    mut comm := n.id.get_communicator(successor)?
+    return comm.query(id)
   }
   return n.data
 }
 
-fn (mut n Node) set(id Reference, data int) ? {
+fn (mut n Node<T>) set(id T, data int) ? {
   successor := n.find_successor(id)?
-  println("set: ${n.id} ${n.successor} ${successor}")
-  if n.id.equals(successor) {
+  println("set: ${n.id} ${n.successor} ${successor.id}")
+  if n.id == successor {
     n.data = data
     return
   }
 
-  return successor.set(id, data)
+  mut comm := n.id.get_communicator(successor)?
+  return comm.set(id, data)
 }
 
-fn join(newid Reference, to Reference) ?Node {
+fn join<T>(newid T, to T) ?Node<T> {
   // comm := to.get_communicator(newid)?
   // below causes infinity loop or compile error...
   // succ := comm.find_successor<T>(newid)
   // succ := comm.find_successor(newid)
-  return Node{id: newid, successor: to}
+  return Node<T>{id: newid, successor: to}
 }

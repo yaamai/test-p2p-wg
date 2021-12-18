@@ -1,6 +1,5 @@
 module chord
 
-/*
 fn test_range() {
   r1 := Range<string>{from: "a", to: "c"}
   assert r1.contains("b")
@@ -16,50 +15,7 @@ fn test_range_inclusive() {
   r1 := Range<string>{from: "a", to: "c", to_inclusive: true}
   assert r1.contains("c")
 }
-*/
 
-struct StringNodeRef {
-  id string
-}
-
-fn (r StringNodeRef) get_predecessor() ?Reference {
-  return error('')
-}
-
-fn (r StringNodeRef) notify(other Reference) ? {
-  return error('')
-}
-
-fn (r StringNodeRef) find_successor(other Reference) ?Reference {
-  return error('')
-}
-
-fn (r StringNodeRef) query(other Reference) ?int {
-  return error('')
-}
-
-fn (r StringNodeRef) set(other Reference, data int) ? {
-  return error('')
-}
-
-fn (r StringNodeRef) equals(other Reference) bool {
-  if other is StringNodeRef {
-    return r.id == other.id
-  }
-  return false
-}
-
-fn (r StringNodeRef) greater(other Reference) bool {
-  if other is StringNodeRef {
-    return r.id < other.id
-  }
-  return false
-}
-
-fn test_a() {
-  bootstrap(StringNodeRef{id: "a"})
-}
-/*
 struct TestComm {
 mut:
   n &Node<TestID>
@@ -177,4 +133,3 @@ fn test_set_query() ? {
   data := m["e"].query(id)?
   assert data == 12345
 }
-*/
