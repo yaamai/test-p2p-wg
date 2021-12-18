@@ -53,7 +53,7 @@ pub fn bootstrap(id string, store Store, comm Communicator) Node {
   return Node{id: id, successor: id, store: store, comm: comm}
 }
 
-fn (mut n Node) stabilize() ? {
+pub fn (mut n Node) stabilize() ? {
   // println(">> ${n}.stabilize():")
   if pred := n.comm.get_predecessor(n.successor) {
     range := Range<string>{from: n.id, to: n.successor}
@@ -66,7 +66,7 @@ fn (mut n Node) stabilize() ? {
   // println("<< ${n}.stabilize():")
 }
 
-fn (mut n Node) notify(id string) {
+pub fn (mut n Node) notify(id string) {
   // println(">> ${n}.notify(): ${id}")
   if n.has_predecessor {
     range := Range<string>{from: n.predecessor, to: n.id}
@@ -81,7 +81,7 @@ fn (mut n Node) notify(id string) {
   // println("<< Node.notify(): ${id}")
 }
 
-fn (n Node) find_successor(id string) ?string {
+pub fn (n Node) find_successor(id string) ?string {
   range := Range<string>{from: n.id, to: n.successor, to_inclusive: true}
   if range.contains(id) {
     return n.successor
@@ -89,7 +89,7 @@ fn (n Node) find_successor(id string) ?string {
   return n.comm.find_successor(n.successor, id)
 }
 
-fn (n Node) query(id string) ?string {
+pub fn (n Node) query(id string) ?string {
   successor := n.find_successor(id)?
   if successor != n.id {
     return n.comm.query(n.successor, id)
@@ -97,7 +97,7 @@ fn (n Node) query(id string) ?string {
   return n.store.get(id.str())
 }
 
-fn (mut n Node) set(id string, data string) ? {
+pub fn (mut n Node) set(id string, data string) ? {
   mut successor := n.find_successor(id)?
   // println("set: ${n.id} ${n.successor} ${successor}")
   if successor == n.id {

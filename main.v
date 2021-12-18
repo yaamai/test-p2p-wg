@@ -18,7 +18,11 @@ fn (c WireguardComm) get_url_by_id(id string) ?string {
 }
 
 fn (c WireguardComm) get_predecessor(id string) ?string {
-  return http.get(c.get_url_by_id(id)? + "/predecessor")?.text
+  text := http.get(c.get_url_by_id(id)? + "/predecessor")?.text
+  if text.len == 0 {
+    return error('')
+  }
+  return text
 }
 
 fn (c WireguardComm) find_successor(id string, target string) ?string {
@@ -51,14 +55,61 @@ fn (mut s TestStore) set(key string, val string) ? {
 }
 
 struct ChordHandler {
+mut:
   node chord.Node
 }
-fn (h ChordHandler) handle(req http.Request) http.Response {
+fn (mut h ChordHandler) handle(req http.Request) http.Response {
   url := urllib.parse(req.url) or { return http.Response{} }
   return match url.path {
-    "/predecessor" { http.new_response(text: json.encode(h.node.predecessor)) }
+    "/predecessor" { h.handle_get_predecessor(req, url) }
+    "/successor" { h.handle_get_successor(req, url) }
+    "/notify" { h.handle_notify(req, url) }
+    "/kvs/" { h.handle_query(req, url) }
+    "/kvs" { h.handle_store(req, url) }
     else { http.Response{} }
   }
+}
+
+fn (h ChordHandler) handle_get_predecessor(req http.Request, url urllib.URL) http.Response {
+  if h.node.has_predecessor {
+    return http.new_response(text: "")
+  }
+  return http.new_response(text: h.node.predecessor)
+}
+
+fn (h ChordHandler) handle_get_successor(req http.Request, url urllib.URL) http.Response {
+  target := url.query().get("target")
+  if succ := h.node.find_successor(target) {
+    return http.new_response(text: succ)
+  }
+  return http.new_response(text: "")
+}
+
+fn (mut h ChordHandler) handle_notify(req http.Request, url urllib.URL) http.Response {
+  h.node.notify(req.data)
+  return http.new_response(text: "")
+}
+
+fn (h ChordHandler) handle_query(req http.Request, url urllib.URL) http.Response {
+  names := url.path.split("/")
+  if names.len != 3 || names[1] != "kvs" {
+    return http.new_response(text: "invalid path")
+  }
+  if val := h.node.query(names[2]) {
+    return http.new_response(text: val)
+  }
+  return http.new_response(text: "")
+}
+
+fn (mut h ChordHandler) handle_store(req http.Request, url urllib.URL) http.Response {
+  names := url.path.split("/")
+  if names.len != 3 || names[1] != "kvs" {
+    return http.new_response(text: "invalid path")
+  }
+  h.node.set(names[2], req.data) or {
+    return http.new_response(text: "")
+  }
+  return http.new_response(text: "")
 }
 
 
@@ -136,6 +187,9 @@ sudo ip netns exec siteB ip link set dev veth1 up
 sudo ip netns exec siteA ip link set dev lo up
 sudo ip netns exec siteB ip link set dev lo up
 */
+
+fn node_loop() {
+}
 
 fn do_bootstrap() ? {
     store := TestStore{}
