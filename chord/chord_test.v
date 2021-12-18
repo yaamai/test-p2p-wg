@@ -17,7 +17,14 @@ mut:
 }
 
 fn (c TestComm) get_predecessor() ?TestID {
-  return error("")
+  if !c.n.has_predecessor {
+    return error('')
+  }
+  return c.n.predecessor
+}
+
+fn (c TestComm) find_successor(id TestID) TestID {
+  return c.n.find_successor(id)
 }
 
 fn (mut c TestComm) notify(id TestID) {
@@ -34,7 +41,7 @@ fn (i TestID) get_communicator(to TestID) ?TestComm {
 }
 
 fn (a TestID) < (b TestID) bool {
-	return true
+	return a.id < b.id
 }
 
 fn (a TestID) str () string {
@@ -52,4 +59,26 @@ fn test_stabilize() ? {
   mut n := bootstrap<TestID>(TestID{id: "a", m: &m})
   m["a"] = &n
   n.stabilize()?
+}
+
+fn test_join_two_peer() ? {
+  mut m := map[string]&Node<TestID>{}
+
+  mut n1 := bootstrap<TestID>(TestID{id: "a", m: &m})
+  m["a"] = &n1
+  println("boostrap a: ${m}")
+
+  mut n2 := join<TestID>(TestID{id: "b", m: &m}, n1.id)?
+  m["b"] = &n2
+  println("boostrap b: ${m}")
+
+  for i := 0; i < 10; i++ {
+    n1.stabilize()?
+    n2.stabilize()?
+  }
+
+  assert n1.successor == n2.id
+  assert n1.predecessor == n2.id
+  assert n2.successor == n1.id
+  assert n2.predecessor == n1.id
 }
