@@ -6,6 +6,7 @@ import chord
 import json
 import net.http
 import time
+import log
 
 const config_env_name = "CONFIG"
 const default_device_name = "sss0"
@@ -109,6 +110,9 @@ fn do_serve() ? {
   mut config := open_config() or { init_config()?.save()? }
   println("loaded config:\n---\n${config}\n---")
 
+  mut logger := log.Log{}
+  logger.set_level(log.Level.debug)
+
   mut store := TestStore{}
   mut dev := apply_config(config)?
 
@@ -118,7 +122,7 @@ fn do_serve() ? {
   if connectable.len > 0 {
     successor_id = connectable[0].public_key
   }
-  mut node := chord.new_node(dev.get_public_key(), successor_id, store, WireguardComm{dev: &dev})
+  mut node := chord.new_node(dev.get_public_key(), successor_id, store, WireguardComm{dev: &dev, logger: logger})
   mut server := &http.Server{handler: ChordHandler{node: &node}}
 
   threads := [
@@ -140,7 +144,8 @@ fn stabilize_loop(mut node chord.Node) {
         println("stabilize() failed: ${err}")
       }
 
-      println("${node.successor} <-> ${node.predecessor}")
+      // TODO: log if changed
+      // println("${node.successor} <-> ${node.predecessor}")
       time.sleep(5*time.second)
     }
 }

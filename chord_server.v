@@ -44,7 +44,6 @@ fn (h ChordHandler) handle_get_successor(req http.Request, url urllib.URL) ?http
 }
 
 fn (mut h ChordHandler) handle_notify(req http.Request, url urllib.URL) ?http.Response {
-  println("receive notify ${req.data}")
   h.node.notify(req.data)
   return empty
 }
