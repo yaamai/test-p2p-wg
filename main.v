@@ -89,6 +89,7 @@ fn apply_config(c Config) ?wireguard.Device {
     allow_exists: true,
   )?
 
+  // TODO: address should be replace, not add
   netlink.set_interface_up(dev.get_index())?
   netlink.add_interface_addr(dev.get_index(), c.tunnel_addr, 32)?
 
@@ -107,9 +108,17 @@ fn apply_config(c Config) ?wireguard.Device {
 fn do_serve() ? {
   mut config := open_config() or { init_config()?.save()? }
   println("loaded config:\n---\n${config}\n---")
+
   mut store := TestStore{}
   mut dev := apply_config(config)?
-  mut node := chord.bootstrap(dev.get_public_key(), store, WireguardComm{dev: &dev})
+
+  // use connectable peer as chord existing successor id
+  mut successor_id := ""
+  connectable := config.peers.filter(it.addr != "")
+  if connectable.len > 0 {
+    successor_id = connectable[0].public_key
+  }
+  mut node := chord.new_node(dev.get_public_key(), successor_id, store, WireguardComm{dev: &dev})
   mut server := &http.Server{handler: ChordHandler{node: &node}}
 
   threads := [
