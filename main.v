@@ -29,13 +29,14 @@ fn main() {
   match os.args[1] {
     "config" { do_config()? }
     "gen-peer" { do_gen_peer()? }
+    "serve" { do_serve()? }
     else { return }
   }
 }
 
 fn do_config() ? {
   // initialize alone
-  config := open_config() or { init_config()?.save()  }
+  config := open_config() or { init_config()?.save()?  }
 
   // initialize with join config
   if os.args.len < 3 {
@@ -46,11 +47,11 @@ fn do_config() ? {
   mut jc := json.decode(JoinConfig, s)?
   // TODO: external ip resolve when join config generation
   jc.peer.addr = "10.0.0.1"
-  config.merge_join_config(jc, true)?.save()
+  config.merge_join_config(jc, true)?.save()?
 }
 
 fn do_gen_peer() ?JoinConfig {
-  mut config := open_config() or { init_config()?.save()  }
+  mut config := open_config() or { init_config()?.save()?  }
 
   // TODO: receive public key from argument
   peer_key := wireguard.new_key()?
@@ -61,10 +62,10 @@ fn do_gen_peer() ?JoinConfig {
     public_key: peer_pubkey.str(),
     tunnel_addr: peer_addr,
   }
-  config.save()
+  config.save()?
   apply_config(config)?
 
-  return JoinConfig {
+  jc := JoinConfig {
     private_key: peer_key.str(),
     tunnel_addr: peer_addr,
     peer: PeerConfig {
@@ -73,9 +74,13 @@ fn do_gen_peer() ?JoinConfig {
       public_key: wireguard.new_key(keystr: config.private_key)?.public()?.str(),
     }
   }
+
+  os.write_file("peer.json", json.encode(jc))?
+
+  return jc
 }
 
-fn apply_config(c Config) ?wireguard.Device {
+fn apply_config(c Config, recreate bool) ?wireguard.Device {
   mut dev := wireguard.open_device(default_device_name) or {
     dev := wireguard.new_device(name: default_device_name, private_key: c.private_key, listen_port: default_device_listen_port)?
     netlink.set_interface_up(dev.get_index())?
@@ -84,8 +89,11 @@ fn apply_config(c Config) ?wireguard.Device {
   }
 
   for peer in c.peers {
-    p := wireguard.new_peer(key: peer.public_key, addr: peer.addr, allowed_ip: peer.tunnel_addr)?
-    dev.set_peer(p)
+    p := wireguard.new_peer(key: peer.public_key, addr: peer.addr, port: peer.port, allowed_ip: peer.tunnel_addr)?
+    dev.set_peer(p) or {
+      println(err)
+      continue
+    }
     netlink.add_if_route(peer.tunnel_addr, 32, dev.get_index(), true)?
   }
 
@@ -93,7 +101,8 @@ fn apply_config(c Config) ?wireguard.Device {
 }
 
 fn do_serve() ? {
-  mut config := open_config() or { init_config()?.save()  }
+  mut config := open_config() or { init_config()?.save()? }
+  println("loaded config:\n---\n${config}\n---")
   mut store := TestStore{}
   mut dev := apply_config(config)?
   mut node := chord.bootstrap(dev.get_public_key(), store, WireguardComm{dev: &dev})

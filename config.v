@@ -70,6 +70,16 @@ fn (c Config) merge_join_config(jc JoinConfig, force bool) ?Config {
   return merged
 }
 
-fn (c Config) save() Config {
+fn (c Config) save() ?Config {
+  files := [
+    os.getenv(config_env_name),
+    "config.json",
+  ]
+
+  for file in files {
+    if file == "" { continue }
+    os.write_file(file, json.encode(c))?
+    break
+  }
   return c
 }

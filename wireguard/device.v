@@ -82,10 +82,15 @@ pub fn (d Device) get_public_key() string {
   return string(public)
 }
 
-pub fn (mut d Device) set_peer(peer Peer) {
+pub fn (mut d Device) set_peer(peer Peer) ? {
   d.base.first_peer = peer.base
   d.base.last_peer = peer.base
-  d.base.flags = d.base.flags | C.WGDEVICE_REPLACE_PEERS
+  d.base.flags = C.WGDEVICE_REPLACE_PEERS
+
+  rc := C.wg_set_device(d.base)
+  if rc != 0 {
+    return error('wg_set_device() failed')
+  }
 }
 
 fn (d Device) destroy() {
