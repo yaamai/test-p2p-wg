@@ -7,12 +7,20 @@ mut:
 }
 
 [params]
-struct DeviceConfig {
+pub struct DeviceConfig {
   name string
   private_key string
-  public_key string
   listen_port int
   allow_exists bool
+}
+
+pub fn open_device(name string) ?Device {
+  mut dev := Device{base: &C.wg_device(0)}
+  rc := C.wg_get_device(&dev.base, name.str)
+  if rc != 0 {
+    return error('wg_get_device() failed')
+  }
+  return dev
 }
 
 pub fn new_device(p DeviceConfig) ?Device {
@@ -32,46 +40,21 @@ pub fn new_device(p DeviceConfig) ?Device {
     return error('wg_get_device() failed')
   }
 
-  // if p.private_key != "" { dev.set_private_key(p.private_key)? }
-  // if p.public_key != "" { dev.set_public_key(p.public_key)? }
-
-
-
-
-  return dev
-}
-
-pub fn (mut d Device) set_private_key(private_key string) ? {
-  if private_key == "" {
-    C.wg_generate_private_key(&d.base.private_key[0])
-  } else {
-    C.wg_key_from_base64(&d.base.private_key[0], private_key.str)
+  key := new_key(keystr: p.private_key)?
+  dev.base.private_key = key.key
+  dev.base.public_key = key.public()?.key
+  dev.base.flags = C.WGDEVICE_HAS_PRIVATE_KEY | C.WGDEVICE_HAS_PUBLIC_KEY
+  if p.listen_port != 0 {
+    dev.base.listen_port = u16(p.listen_port)
+    dev.base.flags |= C.WGDEVICE_HAS_LISTEN_PORT
   }
-  d.base.flags = d.base.flags | C.WGDEVICE_HAS_PRIVATE_KEY
-}
 
-pub fn (mut d Device) set_public_key(public_key string) {
-  C.wg_key_from_base64(&d.base.public_key[0], public_key.str)
-  d.base.flags = d.base.flags | C.WGDEVICE_HAS_PUBLIC_KEY
-}
-
-pub fn (mut d Device) set_listen_port(port int) {
-  d.base.listen_port = u16(port)
-  d.base.flags = d.base.flags | C.WGDEVICE_HAS_LISTEN_PORT
-}
-
-pub fn (d Device) apply() ? {
-  rc := C.wg_set_device(d.base)
+  rc = C.wg_set_device(dev.base)
   if rc != 0 {
     return error('wg_set_device() failed')
   }
-}
 
-fn (d Device) sync() ? {
-  rc := C.wg_get_device(&d.base, &d.base.name[0])
-  if rc != 0 {
-    return error('wg_get_device() failed')
-  }
+  return dev
 }
 
 pub fn (d Device) get_allowed_ips() map[string]string {

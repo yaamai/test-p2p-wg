@@ -63,3 +63,16 @@ fn (mut h ChordHandler) handle_store(req http.Request, url urllib.URL) http.Resp
   return http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
 }
 
+struct TestStore {
+mut:
+  m map[string]string
+}
+
+fn (s TestStore) get(key string) ?string {
+  return s.m[key]
+}
+
+fn (mut s TestStore) set(key string, val string) ? {
+  s.m[key] = val
+}
+
