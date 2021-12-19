@@ -5,7 +5,7 @@ import net
 // error: incompatible types when initializing type ‘unsigned char’ using type ‘string’
 // Option_wireguard__Peer _t3 = wireguard__new_peer((wireguard__PeerConfig){.key = p.remote_public_key,.addr = p.remote_addr,.port = p.remote_port,.allowed_ip = {EMPTY_STRUCT_INITIALIZATION},.allowed_ip_len = 32,});
 [params]
-pub struct PeerConfig {
+pub struct NewPeerConfig {
   key string
   addr string
   port int
@@ -18,7 +18,7 @@ mut:
   base &C.wg_peer
 }
 
-pub fn new_peer(p PeerConfig) ?Peer {
+pub fn new_peer(p NewPeerConfig) ?Peer {
   mut allowed_ip := C.wg_allowedip{
     family: u16(net.AddrFamily.ip),
     cidr: p.allowed_ip_len,
@@ -49,7 +49,7 @@ pub fn new_peer(p PeerConfig) ?Peer {
     peer.addr4.sin_family = u16(net.AddrFamily.ip)
     peer.addr4.sin_port = u16(C.htons(p.port))
   }
-  C.wg_key_from_base64(&peer.public_key[0], p.key.str)
+  peer.public_key = new_key(keystr: p.key)?.key
 
   return Peer{base: &peer}
 }

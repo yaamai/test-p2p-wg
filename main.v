@@ -47,69 +47,63 @@ fn do_config() ? {
   // TODO: external ip resolve when join config generation
   jc.peer.addr = "10.0.0.1"
   config.merge_join_config(jc, true)?.save()
-
-  // dev := wireguard.new_device(name: default_device_name, listen_port: default_device_listen_port)?
-
-  // netlink.set_interface_up(dev.get_index())?
-  // netlink.add_interface_addr(dev.get_index(), "10.163.0.1", 32)?
 }
 
 fn do_gen_peer() ?JoinConfig {
+  mut config := open_config() or { init_config()?.save()  }
+
   // TODO: receive public key from argument
   peer_key := wireguard.new_key()?
   peer_pubkey := peer_key.public()?
   peer_addr := generate_ip_from_bytes(peer_pubkey.key[0..])
 
-  peer := wireguard.new_peer(key: peer_pubkey.str(), allowed_ip: peer_addr)?
-  mut dev := wireguard.open_device(default_device_name)?
-  dev.set_peer(peer)
-  netlink.add_if_route(peer_addr, 32, dev.get_index(), true)?
-  self_tunnel_addr := netlink.get_interface_addr(dev.get_index())?
+  config.peers << PeerConfig {
+    public_key: peer_pubkey.str(),
+    tunnel_addr: peer_addr,
+  }
+  config.save()
+  apply_config(config)?
 
   return JoinConfig {
     private_key: peer_key.str(),
     tunnel_addr: peer_addr,
     peer: PeerConfig {
-      tunnel_addr: self_tunnel_addr,
+      tunnel_addr: config.tunnel_addr,
       port: default_device_listen_port,
-      public_key: dev.get_public_key(),
+      public_key: wireguard.new_key(keystr: config.private_key)?.public()?.str(),
     }
   }
 }
 
-/*
-fn do_join() ? {
-  s := os.read_file("peer.json")?
-  mut config := json.decode(JoinConfig, s)?
-  // TODO
-  config.peer.addr = "10.0.0.1"
+fn apply_config(c Config) ?wireguard.Device {
+  mut dev := wireguard.open_device(default_device_name) or {
+    dev := wireguard.new_device(name: default_device_name, private_key: c.private_key, listen_port: default_device_listen_port)?
+    netlink.set_interface_up(dev.get_index())?
+    netlink.add_interface_addr(dev.get_index(), c.tunnel_addr, 32)?
+    dev
+  }
 
-  mut dev := wireguard.new_device(private_key: config.private_key, name: default_device_name, listen_port: default_device_listen_port)?
-  peer := wireguard.new_peer(key: config.remote_public_key, addr: config.remote_addr, port: config.remote_port, allowed_ip: config.remote_tunnel_addr)?
-  dev.set_peer(peer)
+  for peer in c.peers {
+    p := wireguard.new_peer(key: peer.public_key, addr: peer.addr, allowed_ip: peer.tunnel_addr)?
+    dev.set_peer(p)
+    netlink.add_if_route(peer.tunnel_addr, 32, dev.get_index(), true)?
+  }
 
-  netlink.set_interface_up(dev.get_index())?
-  netlink.add_interface_addr(dev.get_index(), config.tunnel_addr, 32)?
-  netlink.add_if_route(config.remote_tunnel_addr, 32, dev.get_index(), true)?
+  return dev
 }
-*/
 
 fn do_serve() ? {
-    store := TestStore{}
+  mut config := open_config() or { init_config()?.save()  }
+  mut store := TestStore{}
+  mut dev := apply_config(config)?
+  mut node := chord.bootstrap(dev.get_public_key(), store, WireguardComm{dev: &dev})
+  mut server := &http.Server{handler: ChordHandler{node: &node}}
 
-    mut dev := wireguard.open_device(default_device_name)?
-    comm := WireguardComm{dev: &dev}
-    mut node := chord.bootstrap(dev.get_public_key(), store, comm)
-    // os.write_file("peer.json", do_genpeer()?)?
-
-    handler := ChordHandler{node: &node}
-    mut server := &http.Server{handler: handler}
-
-    threads := [
-      go http_server_loop(mut server)
-      go stabilize_loop(mut &node)
-    ]
-    threads.wait()
+  threads := [
+    go http_server_loop(mut server)
+    go stabilize_loop(mut &node)
+  ]
+  threads.wait()
 }
 
 fn http_server_loop(mut server http.Server) {
