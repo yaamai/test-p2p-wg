@@ -62,14 +62,14 @@ fn (mut s TestStore) set(key string, val string) ? {
 fn test_bootstrap() {
   mut s := TestStore{}
   mut c := TestComm{m: map[string]&Node{}}
-  mut n := bootstrap("a", s, c)
+  mut n := new_node("a", "", s, c)
   c.m["a"] = &n
 }
 
 fn test_stabilize() ? {
   mut s := TestStore{}
   mut c := TestComm{m: map[string]&Node{}}
-  mut n := bootstrap("a", s, c)
+  mut n := new_node("a", "", s, c)
   c.m["a"] = &n
   n.stabilize()?
 }
@@ -77,13 +77,13 @@ fn test_stabilize() ? {
 fn create_ring(ids []string) ?(TestComm) {
   mut s := TestStore{}
   mut c := TestComm{m: map[string]&Node{}}
-  mut first := bootstrap(ids[0], s, c)
+  mut first := new_node(ids[0], "", s, c)
 
   c.m[ids[0]] = &first
 
   for id in ids[1..] {
     // TODO: if TestID construct in function argument of join, crash occured when access to id.m
-    mut n := join(id, first.id, s, c)?
+    mut n := new_node(id, first.id, s, c)
     c.m[id] = &n
   }
 

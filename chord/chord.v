@@ -49,10 +49,6 @@ pub mut:
   has_predecessor bool
 }
 
-pub fn bootstrap(id string, store Store, comm Communicator) Node {
-  return Node{id: id, successor: id, store: store, comm: comm}
-}
-
 pub fn (mut n Node) stabilize() ? {
   // println(">> ${n}.stabilize():")
   if pred := n.comm.get_predecessor(n.successor) {
@@ -108,10 +104,11 @@ pub fn (mut n Node) set(id string, data string) ? {
   return n.comm.store(n.successor, id, data)
 }
 
-pub fn join(newid string, to string, store Store, comm Communicator) ?Node {
-  // comm := to.get_communicator(newid)?
-  // below causes infinity loop or compile error...
-  // succ := comm.find_successor<T>(newid)
-  // succ := comm.find_successor(newid)
-  return Node{id: newid, successor: to, store: store, comm: comm}
+
+pub fn new_node(id string, successor_id string, store Store, comm Communicator) Node {
+  mut sid := successor_id
+  if sid == "" {
+    sid = id
+  }
+  return Node{id: id, successor: sid, store: store, comm: comm}
 }
