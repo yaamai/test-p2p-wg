@@ -22,7 +22,10 @@ fn C.wg_key_is_zero(key &byte) bool
 
 struct C.wg_key {}
 struct C.timespec64 {}
-struct C.in_addr {}
+struct C.in_addr {
+mut:
+	s_addr int
+}
 struct C.in6_addr {}
 struct C.wg_allowedip {
 	family u16
@@ -33,8 +36,8 @@ struct C.wg_allowedip {
 }
 struct C.sockaddr_in {
 mut:
-	sin_family u16
-	sin_port   u16
+	sin_family int
+	sin_port   int
 	sin_addr   C.in_addr
 }
 struct C.sockaddr_in6 {

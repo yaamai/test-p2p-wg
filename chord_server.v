@@ -1,73 +1,86 @@
 module main
-import net.http
-import net.urllib
+import picoev
+import picohttpparser
 import chord
 
-const empty = http.new_response(text: "", header: http.new_header(key: http.CommonHeader.content_length, value: "0"))
-const path_not_found = http.new_response(text: "path not found")
-
-struct ChordHandler {
-mut:
-  node &chord.Node
+fn new_chord_server(mut node chord.Node) &picoev.Picoev {
+  c := picoev.Config {cb: chord_handler, user_data: unsafe { &node }}
+  return picoev.new(c)
 }
 
-fn (mut h ChordHandler) handle(req http.Request) http.Response {
-  url := urllib.parse(req.url) or { return http.Response{} }
-  resp := h.routing(req, url, url.path) or {
-    http.new_response(text: err.msg)
+fn chord_handler(node_ptr voidptr, req picohttpparser.Request, mut resp picohttpparser.Response) {
+  chord_handler_routing(node_ptr, req, mut resp) or {
+	resp.raw('HTTP/1.1 500 Internal Server Error\r\n')
+    resp.body(err.msg)
+    resp.end()
+    return
   }
-  return resp
 }
 
-fn (mut h ChordHandler) routing(req http.Request, url urllib.URL, path string) ?http.Response {
-  if path.starts_with("/predecessor") { return h.handle_get_predecessor(req, url) }
-  if path.starts_with("/successor") { return h.handle_get_successor(req, url) }
-  if path.starts_with("/notify") { return h.handle_notify(req, url) }
-  if path.starts_with("/kvs/") { return h.handle_query(req, url) }
-  if path.starts_with("/kvs") { return h.handle_store(req, url) }
-  return path_not_found
+fn http_ok(mut resp picohttpparser.Response, data string) {
+  resp.http_ok()
+  resp.plain()
+  resp.body(data)
+  resp.end()
 }
 
-fn (h ChordHandler) handle_get_predecessor(req http.Request, url urllib.URL) ?http.Response {
-  if !h.node.has_predecessor {
-    return empty
+// wrap optional
+fn chord_handler_routing(node_ptr voidptr, req picohttpparser.Request, mut resp picohttpparser.Response) ? {
+  if req.path.starts_with("/predecessor") { return handle_get_predecessor(node_ptr, req, mut resp) }
+  if req.path.starts_with("/successor") { return handle_get_successor(node_ptr, req, mut resp) }
+  if req.path.starts_with("/notify") { return handle_notify(node_ptr, req, mut resp) }
+  if req.path.starts_with("/kvs/") { return handle_query(node_ptr, req, mut resp) }
+  if req.path.starts_with("/kvs") { return handle_store(node_ptr, req, mut resp) }
+  return error("no route found")
+}
+
+fn handle_get_predecessor(node_ptr voidptr, req picohttpparser.Request, mut resp picohttpparser.Response) ? {
+  node := unsafe { &chord.Node(node_ptr) }
+  if !node.has_predecessor {
+    http_ok(mut resp, "")
+    return
   }
-  return http.new_response(text: h.node.predecessor)
+
+  http_ok(mut resp, node.predecessor)
 }
 
-fn (h ChordHandler) handle_get_successor(req http.Request, url urllib.URL) ?http.Response {
-  target := url.query().get("target")
-  if succ := h.node.find_successor(target) {
-    return http.new_response(text: succ)
+fn handle_get_successor(node_ptr voidptr, req picohttpparser.Request, mut resp picohttpparser.Response) ? {
+  node := unsafe { &chord.Node(node_ptr) }
+  s := req.path.split("?target=")
+  if s.len != 2 {
+    return error("invalid target argument")
   }
-  return empty
+  succ := node.find_successor(s[1])?
+
+  http_ok(mut resp, succ)
 }
 
-fn (mut h ChordHandler) handle_notify(req http.Request, url urllib.URL) ?http.Response {
-  h.node.notify(req.data)
-  return empty
+fn handle_notify(node_ptr voidptr, req picohttpparser.Request, mut resp picohttpparser.Response) ? {
+  mut node := unsafe { &chord.Node(node_ptr) }
+  node.notify(req.body)
+  http_ok(mut resp, "")
 }
 
-fn (h ChordHandler) handle_query(req http.Request, url urllib.URL) ?http.Response {
-  names := url.path.split("/")
+fn handle_query(node_ptr voidptr, req picohttpparser.Request, mut resp picohttpparser.Response) ? {
+  node := unsafe { &chord.Node(node_ptr) }
+  names := req.path.split("/")
   if names.len != 3 || names[1] != "kvs" {
-    return http.new_response(text: "invalid path")
+    return error("invalid path")
   }
-  if val := h.node.query(names[2]) {
-    return http.new_response(text: val)
-  }
-  return empty
+
+  val := node.query(names[2])?
+  http_ok(mut resp, val)
 }
 
-fn (mut h ChordHandler) handle_store(req http.Request, url urllib.URL) ?http.Response {
-  names := url.path.split("/")
+fn handle_store(node_ptr voidptr, req picohttpparser.Request, mut resp picohttpparser.Response) ? {
+  mut node := unsafe { &chord.Node(node_ptr) }
+
+  names := req.path.split("/")
   if names.len != 3 || names[1] != "kvs" {
-    return http.new_response(text: "invalid path")
+    return error("invalid path")
   }
-  h.node.set(names[2], req.data) or {
-    return empty
-  }
-  return empty
+  node.set(names[2], req.body)?
+  http_ok(mut resp, "")
 }
 
 struct TestStore {

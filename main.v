@@ -4,7 +4,6 @@ import os
 import netlink
 import chord
 import json
-import net.http
 import time
 import log
 
@@ -123,19 +122,13 @@ fn do_serve() ? {
     successor_id = connectable[0].public_key
   }
   mut node := chord.new_node(dev.get_public_key(), successor_id, store, WireguardComm{dev: &dev, logger: logger})
-  mut server := &http.Server{handler: ChordHandler{node: &node}}
+  mut server := new_chord_server(mut node)
 
   threads := [
-    go http_server_loop(mut server)
+    go server.serve()
     go stabilize_loop(mut &node)
   ]
   threads.wait()
-}
-
-fn http_server_loop(mut server http.Server) {
-    server.listen_and_serve() or {
-      return
-    }
 }
 
 fn stabilize_loop(mut node chord.Node) {
