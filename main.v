@@ -80,13 +80,17 @@ fn do_gen_peer() ?JoinConfig {
   return jc
 }
 
-fn apply_config(c Config, recreate bool) ?wireguard.Device {
-  mut dev := wireguard.open_device(default_device_name) or {
-    dev := wireguard.new_device(name: default_device_name, private_key: c.private_key, listen_port: default_device_listen_port)?
-    netlink.set_interface_up(dev.get_index())?
-    netlink.add_interface_addr(dev.get_index(), c.tunnel_addr, 32)?
-    dev
-  }
+fn apply_config(c Config) ?wireguard.Device {
+  // TODO: make declarative
+  mut dev := wireguard.new_device(
+    name: default_device_name,
+    private_key: c.private_key,
+    listen_port: default_device_listen_port,
+    allow_exists: true,
+  )?
+
+  netlink.set_interface_up(dev.get_index())?
+  netlink.add_interface_addr(dev.get_index(), c.tunnel_addr, 32)?
 
   for peer in c.peers {
     p := wireguard.new_peer(key: peer.public_key, addr: peer.addr, port: peer.port, allowed_ip: peer.tunnel_addr)?
