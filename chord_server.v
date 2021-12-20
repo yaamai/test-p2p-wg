@@ -4,6 +4,8 @@ import picohttpparser
 import chord
 import log
 
+const empty = ""
+
 [heap]
 struct Server {
 mut:
@@ -30,7 +32,7 @@ fn chord_handler(node_ptr voidptr, req picohttpparser.Request, mut resp picohttp
   s.logger.debug("chord_handler(): ${req.path}")
   s.chord_handler_routing(req, mut resp) or {
 	resp.raw('HTTP/1.1 500 Internal Server Error\r\n')
-    resp.body(err.msg)
+    resp.body(err.msg.clone())
     resp.end()
     return
   }
@@ -59,7 +61,7 @@ fn (mut s Server) chord_handler_routing(req picohttpparser.Request, mut resp pic
 fn (mut s Server) handle_get_predecessor(req picohttpparser.Request, mut resp picohttpparser.Response) ? {
   s.logger.debug("handle_get_predecessor(): ${s.node.predecessor}")
   if !s.node.has_predecessor {
-    http_ok(mut resp, "")
+    http_ok(mut resp, empty)
     return
   }
 
@@ -78,28 +80,30 @@ fn (mut s Server) handle_get_successor(req picohttpparser.Request, mut resp pico
 
 fn (mut s Server) handle_notify(req picohttpparser.Request, mut resp picohttpparser.Response) ? {
   s.logger.debug("handle_notify(): ${req.body}")
-  s.node.notify(req.body)
-  http_ok(mut resp, "")
+  s.node.notify(req.body.clone())
+  http_ok(mut resp, empty)
 }
 
 fn (mut s Server) handle_query(req picohttpparser.Request, mut resp picohttpparser.Response) ? {
+  s.logger.debug("handle_query():")
   names := req.path.split("/")
   if names.len != 3 || names[1] != "kvs" {
     return error("invalid path")
   }
 
   val := s.node.query(names[2])?
+  s.logger.debug("    -> ${val}")
   http_ok(mut resp, val)
 }
 
 fn (mut s Server) handle_store(req picohttpparser.Request, mut resp picohttpparser.Response) ? {
-  s.logger.debug("handle_store(): ")
+  s.logger.debug("handle_store(): ${req.body}")
   names := req.path.split("/")
   if names.len != 3 || names[1] != "kvs" {
     return error("invalid path")
   }
-  s.node.set(names[2], req.body)?
-  http_ok(mut resp, "")
+  s.node.set(names[2], req.body.clone())?
+  http_ok(mut resp, empty)
 }
 
 struct TestStore {
