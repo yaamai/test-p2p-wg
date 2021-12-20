@@ -12,10 +12,6 @@ const config_env_name = "CONFIG"
 const default_device_name = "sss0"
 const default_device_listen_port = 43617
 
-fn generate_ip_from_bytes(id []byte) string {
-  return "10.163.${id[0]}.${id[1]}"
-}
-
 fn main() {
 
   if os.args.len < 2 {
@@ -123,7 +119,12 @@ fn do_serve() ? {
     successor_id = connectable[0].public_key
   }
   comm := WireguardComm{dev: &dev, logger: logger}
-  mut node := chord.new_node(dev.get_public_key(), successor_id, store, comm)
+  mut node := chord.new_node(
+    generate_chord_id_from_pubkey(dev.get_public_key()),
+    generate_chord_id_from_pubkey(successor_id),
+    store,
+    comm
+  )
   mut server := &ChordServer{state: State{node: &node, logger: &logger}}
 
   threads := [

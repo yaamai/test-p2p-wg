@@ -12,11 +12,11 @@ pub mut:
 
 fn (c WireguardComm) get_url_by_id(id string) ?string {
   ips := c.dev.get_allowed_ips()
-  if ip := ips[id] {
+  if ip := ips[generate_chord_id_from_pubkey(id)] {
     return "http://${ip}:8080"
   }
 
-  if c.dev.get_public_key() == id {
+  if generate_chord_id_from_pubkey(c.dev.get_public_key()) == id {
     self_ip := netlink.get_interface_addr(c.dev.get_index())?
     return "http://${self_ip}:8080"
   }
