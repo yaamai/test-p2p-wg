@@ -32,7 +32,7 @@ pub fn (mut server ChordServer) handle_predecessor() vweb.Result {
 
 ['/successor']
 pub fn (mut server ChordServer) handle_get_successor() vweb.Result {
-  lock server.state {
+  rlock server.state {
     t := server.Context.query["target"]
     server.state.logger.debug("handle_get_successor(): ${t}")
   }

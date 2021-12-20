@@ -57,7 +57,7 @@ fn (c WireguardComm) query(id string, key string) ?string {
 }
 
 fn (c WireguardComm) store(id string, key string, val string) ? {
-  url := c.get_url_by_id(id)? + "/kvs" + key
-  c.logger.debug("query(): ${id} ${key} ${val} -> ${url}")
+  url := c.get_url_by_id(id)? + "/kvs/" + key
+  c.logger.debug("store(): ${id} ${key} ${val} -> ${url}")
   http.post(url, val)?
 }
