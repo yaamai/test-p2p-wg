@@ -57,7 +57,7 @@ pub fn new_device(p DeviceConfig) ?Device {
   return dev
 }
 
-pub fn (d Device) get_allowed_ips() map[string]string {
+pub fn (d Device) get_allowed_ips_converted(f fn(string) string) map[string]string {
   mut result := map[string]string{}
   b := []byte{len: 15}
   public := []byte{len: 45}
@@ -66,10 +66,15 @@ pub fn (d Device) get_allowed_ips() map[string]string {
     for ip := peer.first_allowedip; ip != 0; ip = ip.next_allowedip {
       C.inet_ntop(net.AddrFamily.ip, &ip.ip4, b.data, b.len)
       C.wg_key_to_base64(public.data, &peer.public_key[0])
-      result[string(public)] = string(b)
+      result[f(string(public))] = string(b)
     }
   }
   return result
+}
+
+fn s(s string) string { return s }
+pub fn (d Device) get_allowed_ips() map[string]string {
+  return d.get_allowed_ips_converted(s)
 }
 
 pub fn (d Device) get_index() u32 {

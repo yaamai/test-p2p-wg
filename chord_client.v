@@ -11,7 +11,7 @@ pub mut:
 }
 
 fn (c WireguardComm) get_url_by_id(id string) ?string {
-  ips := c.dev.get_allowed_ips()
+  ips := c.dev.get_allowed_ips_converted(generate_chord_id_from_pubkey)
   if ip := ips[generate_chord_id_from_pubkey(id)] {
     return "http://${ip}:8080"
   }
