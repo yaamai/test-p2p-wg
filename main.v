@@ -121,8 +121,9 @@ fn do_serve() ? {
   if connectable.len > 0 {
     successor_id = connectable[0].public_key
   }
-  mut node := chord.new_node(dev.get_public_key(), successor_id, store, WireguardComm{dev: &dev, logger: logger})
-  mut server := new_chord_server(mut node)
+  comm := WireguardComm{dev: &dev, logger: logger}
+  mut node := chord.new_node(dev.get_public_key(), successor_id, store, comm)
+  mut server := new_chord_server(mut &node, logger)
 
   threads := [
     go server.serve()
