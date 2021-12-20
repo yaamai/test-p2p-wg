@@ -124,7 +124,7 @@ fn do_serve() ? {
   }
   comm := WireguardComm{dev: &dev, logger: logger}
   mut node := chord.new_node(dev.get_public_key(), successor_id, store, comm)
-  mut server := &ChordServer{state: &State{node: &node}}
+  mut server := &ChordServer{state: State{node: &node, logger: &logger}}
 
   threads := [
     go vweb.run(server, 8080)

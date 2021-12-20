@@ -10,32 +10,38 @@ const (
 struct ChordServer {
   vweb.Context
 mut:
-  state &State
+  state shared State
 }
 
 struct State {
 mut:
-  logger log.Log
+  logger log.Logger
   node &chord.Node = 0
 }
 
 ['/predecessor']
 pub fn (mut server ChordServer) handle_predecessor() vweb.Result {
-  server.state.logger.debug("handle_get_predecessor():")
-  if server.state.node.has_predecessor {
-    return server.text(server.state.node.predecessor)
+  lock server.state { server.state.logger.debug("handle_get_predecessor():") }
+  rlock server.state {
+    if server.state.node.has_predecessor {
+      return server.text(server.state.node.predecessor)
+    }
   }
   return server.text("")
 }
 
 ['/successor']
 pub fn (mut server ChordServer) handle_get_successor() vweb.Result {
-  t := server.Context.query["target"]
-  server.state.logger.debug("handle_get_successor(): ${t}")
-  target := server.Context.query["target"]
-  if target != "" {
-    succ := server.state.node.find_successor(target) or { "" }
-    return server.text(succ)
+  rlock server.state {
+    t := server.Context.query["target"]
+    server.state.logger.debug("handle_get_successor(): ${t}")
+  }
+  rlock server.state {
+    target := server.Context.query["target"]
+    if target != "" {
+      succ := server.state.node.find_successor(target) or { "" }
+      return server.text(succ)
+    }
   }
   return server.text("")
 }
@@ -43,24 +49,31 @@ pub fn (mut server ChordServer) handle_get_successor() vweb.Result {
 [post]
 ['/notify']
 pub fn (mut server ChordServer) handle_notify() vweb.Result {
-  server.state.logger.debug("handle_notify(): ${server.req.data}")
-  server.state.node.notify(server.req.data)
+  lock server.state { server.state.logger.debug("handle_notify(): ${server.req.data}") }
+  lock server.state {
+    server.state.node.notify(server.req.data)
+  }
   return server.text("")
 }
 
 ['/kvs/:id']
 pub fn (mut server ChordServer) handle_query(id string) vweb.Result {
-  server.state.logger.debug("handle_query(): ${id}")
-  val := server.state.node.query(id) or { "" }
-  return server.text(val)
+  lock server.state { server.state.logger.debug("handle_query(): ${id}") }
+  rlock server.state {
+    val := server.state.node.query(id) or { "" }
+    return server.text(val)
+  }
+  return server.text("")
 }
 
 [post]
 ['/kvs/:id']
 pub fn (mut server ChordServer) handle_store(id string) vweb.Result {
-  server.state.logger.debug("handle_store(): ${id} <= ${server.req.data}")
-  server.state.node.set(id, server.req.data) or {
-    return server.text("")
+  lock server.state { server.state.logger.debug("handle_store(): ${id} <= ${server.req.data}") }
+  lock server.state {
+    server.state.node.set(id, server.req.data) or {
+      return server.text("")
+    }
   }
   return server.text("")
 }
