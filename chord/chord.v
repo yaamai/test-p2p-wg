@@ -42,6 +42,7 @@ struct Node {
   id string
   store Store
   comm Communicator
+
 pub mut:
   successor string
   // vlang cant assign optional values in struct currently. vlang/v: #11293
@@ -93,7 +94,7 @@ pub fn (n Node) query(id string) ?string {
   return n.store.get(id.str())
 }
 
-pub fn (mut n Node) set(id string, data string) ? {
+pub fn (n Node) set(id string, data string) ? {
   mut successor := n.find_successor(id)?
   // println("set: ${n.id} ${n.successor} ${successor}")
   if successor == n.id {

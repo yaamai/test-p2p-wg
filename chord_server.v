@@ -70,7 +70,7 @@ pub fn (mut server ChordServer) handle_query(id string) vweb.Result {
 ['/kvs/:id']
 pub fn (mut server ChordServer) handle_store(id string) vweb.Result {
   lock server.state { server.state.logger.debug("handle_store(): ${id} <= ${server.req.data}") }
-  lock server.state {
+  rlock server.state {
     server.state.node.set(id, server.req.data) or {
       return server.text("")
     }
