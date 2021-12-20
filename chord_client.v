@@ -37,8 +37,9 @@ fn (c WireguardComm) get_predecessor(id string) ?string {
 
 fn (c WireguardComm) find_successor(id string, target string) ?string {
   url := c.get_url_by_id(id)? + "/successor" + "?target=" + target
+  c.logger.debug("find_successor(): ${url}")
   text := http.get(url)?.text
-  c.logger.debug("find_successor(): ${url} -> ${text}")
+  c.logger.debug("    -> ${text}")
 
   return text
 }

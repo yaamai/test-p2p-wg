@@ -1,8 +1,88 @@
 module main
+import vweb
+import log
+import chord
+
+const (
+  port = 8088
+)
+
+struct ChordServer {
+  vweb.Context
+mut:
+  state shared State
+}
+
+struct State {
+mut:
+  logger log.Logger
+  node &chord.Node = 0
+}
+
+['/predecessor']
+pub fn (mut server ChordServer) handle_predecessor() vweb.Result {
+  lock server.state { server.state.logger.debug("handle_get_predecessor():") }
+  rlock server.state {
+    if server.state.node.has_predecessor {
+      return server.text(server.state.node.predecessor)
+    }
+  }
+  return server.text("")
+}
+
+['/successor']
+pub fn (mut server ChordServer) handle_get_successor() vweb.Result {
+  lock server.state {
+    t := server.Context.query["target"]
+    server.state.logger.debug("handle_get_successor(): ${t}")
+  }
+  rlock server.state {
+    target := server.Context.query["target"]
+    if target != "" {
+      succ := server.state.node.find_successor(target) or { "" }
+      return server.text(succ)
+    }
+  }
+  return server.text("")
+}
+
+[post]
+['/notify']
+pub fn (mut server ChordServer) handle_notify() vweb.Result {
+  lock server.state { server.state.logger.debug("handle_notify(): ${server.req.data}") }
+  lock server.state {
+    server.state.node.notify(server.req.data)
+  }
+  return server.text("")
+}
+
+['/kvs/:id']
+pub fn (mut server ChordServer) handle_query(id string) vweb.Result {
+  lock server.state { server.state.logger.debug("handle_query(): ${id}") }
+  rlock server.state {
+    val := server.state.node.query(id) or { "" }
+    return server.text(val)
+  }
+  return server.text("")
+}
+
+[post]
+['/kvs/:id']
+pub fn (mut server ChordServer) handle_store(id string) vweb.Result {
+  lock server.state { server.state.logger.debug("handle_store(): ${id} <= ${server.req.data}") }
+  lock server.state {
+    server.state.node.set(id, server.req.data) or {
+      return server.text("")
+    }
+  }
+  return server.text("")
+}
+
+/*
+
+
 import picoev
 import picohttpparser
-import chord
-import log
 
 const empty = ""
 
@@ -10,8 +90,6 @@ const empty = ""
 struct Server {
 mut:
   pico &picoev.Picoev = 0
-  node &chord.Node = 0
-  logger log.Logger
 }
 
 fn new_chord_server(mut node &chord.Node, logger log.Logger) Server {
@@ -105,6 +183,7 @@ fn (mut s Server) handle_store(req picohttpparser.Request, mut resp picohttppars
   s.node.set(names[2], req.body.clone())?
   http_ok(mut resp, empty)
 }
+*/
 
 struct TestStore {
 mut:
@@ -118,4 +197,5 @@ fn (s TestStore) get(key string) ?string {
 fn (mut s TestStore) set(key string, val string) ? {
   s.m[key] = val
 }
+
 

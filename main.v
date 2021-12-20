@@ -6,6 +6,7 @@ import chord
 import json
 import time
 import log
+import vweb
 
 const config_env_name = "CONFIG"
 const default_device_name = "sss0"
@@ -123,10 +124,10 @@ fn do_serve() ? {
   }
   comm := WireguardComm{dev: &dev, logger: logger}
   mut node := chord.new_node(dev.get_public_key(), successor_id, store, comm)
-  mut server := new_chord_server(mut &node, logger)
+  mut server := &ChordServer{state: State{node: &node, logger: &logger}}
 
   threads := [
-    go server.serve()
+    go vweb.run(server, 8080)
     go stabilize_loop(mut &node)
   ]
   threads.wait()
