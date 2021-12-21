@@ -109,8 +109,13 @@ fn do_serve() ? {
   mut logger := log.Log{}
   logger.set_level(log.Level.debug)
 
-  mut store := TestStore{}
   mut dev := apply_config(config)?
+  self_id := generate_chord_id_from_pubkey(dev.get_public_key())
+  mut store := TestStore{
+    m: map[string]string{},
+    dev: wireguard.open_device(dev.get_name())?,
+    self_id: self_id,
+  }
 
   // use connectable peer as chord existing successor id
   mut successor_id := ""
@@ -120,7 +125,7 @@ fn do_serve() ? {
   }
   comm := WireguardComm{dev: &dev, logger: logger}
   mut node := chord.new_node(
-    generate_chord_id_from_pubkey(dev.get_public_key()),
+    self_id,
     generate_chord_id_from_pubkey(successor_id),
     store,
     comm

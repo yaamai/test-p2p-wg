@@ -1,6 +1,63 @@
 module wireguard
 import net
 
+struct AllowedIpRepr {
+  family u16
+  addr string
+  length u8
+}
+
+struct PeerRepr {
+  flags int
+  public_key Key
+  family u16
+  addr string
+  allowed_ips []AllowedIpRepr
+}
+
+struct DeviceRepr {
+  name string
+  flags int
+  public_key Key
+  private_key Key
+  listen_port int
+  peers []PeerRepr
+}
+[params]
+pub struct NewPeerReprConfig {
+  ptr &C.wg_peer = 0
+}
+
+pub fn new_peer_repr(p NewPeerReprConfig) ?PeerRepr {
+  return PeerRepr{
+    flags: p.ptr.flags,
+    public_key: new_key(ptr: &p.ptr.public_key[0])?,
+  }
+}
+
+pub fn open_device_repr(name string) ?DeviceRepr {
+  base := &C.wg_device{}
+  rc := C.wg_get_device(&base, name.str)
+  if rc != 0 {
+    return error('wg_get_device() failed')
+  }
+
+  mut peers := []PeerRepr{}
+  for peer := base.first_peer; peer != 0; peer = peer.next_peer {
+    p := unsafe { new_peer_repr(ptr: peer) }
+    peers << p
+  }
+
+  return DeviceRepr {
+    name: unsafe { cstring_to_vstring(&base.name[0]) },
+    flags: base.flags,
+    public_key: new_key(ptr: &base.public_key[0], is_pub: true)?,
+    private_key: new_key(ptr: &base.private_key[0])?,
+    listen_port: base.listen_port,
+    peers: peers,
+  }
+}
+
 struct Device {
 mut:
   base &C.wg_device
@@ -75,6 +132,10 @@ pub fn (d Device) get_allowed_ips_converted(f fn(string) string) map[string]stri
 fn s(s string) string { return s }
 pub fn (d Device) get_allowed_ips() map[string]string {
   return d.get_allowed_ips_converted(s)
+}
+
+pub fn (d Device) get_name() string {
+  return unsafe { cstring_to_vstring(&d.base.name[0]) }
 }
 
 pub fn (d Device) get_index() u32 {

@@ -2,7 +2,7 @@ module wireguard
 
 struct Key {
 pub mut:
-  key [32]byte
+  key [32]byte [skip]
   keystr string
 }
 

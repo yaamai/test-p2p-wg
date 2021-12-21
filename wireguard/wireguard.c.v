@@ -71,8 +71,8 @@ mut:
 	private_key [wg_key_size]byte
 	fwmark u32
 	listen_port u16
-	first_peer &C.wg_peer
-	last_peer &C.wg_peer
+	first_peer &C.wg_peer = 0
+	last_peer &C.wg_peer = 0
 }
 
 /*

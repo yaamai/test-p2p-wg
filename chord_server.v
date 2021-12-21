@@ -1,7 +1,9 @@
 module main
+import json
 import vweb
 import log
 import chord
+import wireguard
 
 const (
   port = 8088
@@ -188,9 +190,15 @@ fn (mut s Server) handle_store(req picohttpparser.Request, mut resp picohttppars
 struct TestStore {
 mut:
   m map[string]string
+  dev wireguard.Device
+  self_id string
 }
 
 fn (s TestStore) get(key string) ?string {
+  if key == s.self_id {
+    d := wireguard.open_device_repr(s.dev.get_name())?
+    return json.encode(d)
+  }
   return s.m[key]
 }
 
