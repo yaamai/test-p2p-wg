@@ -1,18 +1,108 @@
 module wireguard
 import net
 
-struct AllowedIpRepr {
-  family u16
+struct IpAddress {
+  family net.AddrFamily
   addr string
+}
+
+[params]
+struct NewIpAddressConfig {
+  family net.AddrFamily
+  ptr voidptr
+}
+
+fn inet_ntop(family net.AddrFamily, ptr voidptr) string {
+  buffer_len := if family == net.AddrFamily.ip { C.INET_ADDRSTRLEN } else { C.INET6_ADDRSTRLEN }
+  buffer := []byte{len: buffer_len}
+  C.inet_ntop(family, ptr, buffer.data, buffer.len)
+
+  return unsafe { cstring_to_vstring(buffer.data) }
+}
+
+fn new_ipaddress(p NewIpAddressConfig) ?IpAddress {
+  return IpAddress {
+    family: p.family,
+    addr: inet_ntop(p.family, p.ptr)
+  }
+}
+
+struct IpSocketAddress {
+  IpAddress
+  port u16
+}
+
+[params]
+struct NewIpSocketAddressConfig {
+  sockaddr_ptr &C.sockaddr
+}
+
+fn new_ip_socket_address(p NewIpSocketAddressConfig) ?IpSocketAddress {
+  if p.sockaddr_ptr.sa_family == u16(net.AddrFamily.ip) {
+    sa := C.sockaddr_in{}
+	unsafe { vmemcpy(&sa, p.sockaddr_ptr, int(sizeof(C.sockaddr_in))) }
+
+    return IpSocketAddress {
+      family: net.AddrFamily.ip,
+      addr: inet_ntop(net.AddrFamily.ip, &sa.sin_addr),
+      port: sa.sin_port,
+    }
+  } else {
+    sa := C.sockaddr_in6{}
+	unsafe { vmemcpy(&sa, p.sockaddr_ptr, int(sizeof(C.sockaddr_in6))) }
+
+    return IpSocketAddress {
+      family: net.AddrFamily.ip,
+      addr: inet_ntop(net.AddrFamily.ip, &sa.sin6_addr),
+      port: sa.sin6_port,
+    }
+  }
+}
+
+/*
+  if p.addr != "" && p.port != 0 {
+    // vlang's C-FFI has bug to initialize union member in struct declaration.
+    // if move below assignment at struct declaration will override addr4 with addr6...
+    rc := C.inet_pton(net.AddrFamily.ip, p.addr.str, &peer.addr4.sin_addr)
+    if rc < 0 {
+      return error('inte_pton() failed: ${rc}')
+    }
+    peer.addr4.sin_family = u16(net.AddrFamily.ip)
+    peer.addr4.sin_port = u16(C.htons(p.port))
+  }
+*/
+
+struct IpAddressCidr {
+  IpAddress
   length u8
+}
+
+[params]
+struct NewIpAddressCidrConfig {
+  allowed_ip_ptr &C.wg_allowedip
+}
+
+fn new_ip_address_cidr(p NewIpAddressCidrConfig) ?IpAddressCidr {
+  if p.allowed_ip_ptr.family == u16(net.AddrFamily.ip) {
+    return IpAddressCidr {
+      family: net.AddrFamily.ip,
+      addr: inet_ntop(net.AddrFamily.ip, &p.allowed_ip_ptr.ip4),
+      length: p.allowed_ip_ptr.cidr,
+    }
+  } else {
+    return IpAddressCidr {
+      family: net.AddrFamily.ip6,
+      addr: inet_ntop(net.AddrFamily.ip6, &p.allowed_ip_ptr.ip6),
+      length: p.allowed_ip_ptr.cidr,
+    }
+  }
 }
 
 struct PeerRepr {
   flags int
   public_key Key
-  family u16
-  addr string
-  allowed_ips []AllowedIpRepr
+  addr IpSocketAddress
+  allowed_ips []IpAddressCidr
 }
 
 struct DeviceRepr {
@@ -23,15 +113,24 @@ struct DeviceRepr {
   listen_port int
   peers []PeerRepr
 }
+
 [params]
 pub struct NewPeerReprConfig {
   ptr &C.wg_peer = 0
 }
 
 pub fn new_peer_repr(p NewPeerReprConfig) ?PeerRepr {
+  mut addrs := []IpAddressCidr{}
+  for ip := p.ptr.first_allowedip; ip != 0; ip = ip.next_allowedip {
+    addr := unsafe { new_ip_address_cidr(allowed_ip_ptr: ip) }
+    addrs << addr
+  }
+
   return PeerRepr{
     flags: p.ptr.flags,
     public_key: new_key(ptr: &p.ptr.public_key[0])?,
+    addr: new_ip_socket_address(sockaddr_ptr: &p.ptr.addr)?,
+    allowed_ips: addrs,
   }
 }
 

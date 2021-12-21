@@ -34,10 +34,13 @@ struct C.wg_allowedip {
 	cidr u8
 	next_allowedip &C.wg_allowedip
 }
+struct C.sockaddr {
+	sa_family u16
+}
 struct C.sockaddr_in {
 mut:
-	sin_family int
-	sin_port   int
+	sin_family u16
+	sin_port   u16
 	sin_addr   C.in_addr
 }
 struct C.sockaddr_in6 {
@@ -51,6 +54,7 @@ mut:
     flags int
     public_key [wg_key_size]byte
     preshared_key [wg_key_size]byte
+    addr C.sockaddr
     addr4 C.sockaddr_in
     addr6 C.sockaddr_in6
     last_handshake_time C.timespec64
