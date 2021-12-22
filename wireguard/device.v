@@ -1,6 +1,22 @@
 module wireguard
 import net
 
+fn inet_ntop(family net.AddrFamily, ptr voidptr) string {
+  buffer_len := if family == net.AddrFamily.ip { C.INET_ADDRSTRLEN } else { C.INET6_ADDRSTRLEN }
+  buffer := []byte{len: buffer_len}
+  C.inet_ntop(family, ptr, buffer.data, buffer.len)
+
+  return unsafe { cstring_to_vstring(buffer.data) }
+}
+
+fn inet_pton(family net.AddrFamily, addr string, ptr voidptr) ? {
+  rc := C.inet_pton(family, addr.str, ptr)
+  if rc < 0 {
+    return error('inte_pton() failed: ${rc}')
+  }
+}
+
+
 struct IpAddress {
   family net.AddrFamily
   addr string
@@ -12,14 +28,6 @@ struct NewIpAddressConfig {
   ptr voidptr
 }
 
-fn inet_ntop(family net.AddrFamily, ptr voidptr) string {
-  buffer_len := if family == net.AddrFamily.ip { C.INET_ADDRSTRLEN } else { C.INET6_ADDRSTRLEN }
-  buffer := []byte{len: buffer_len}
-  C.inet_ntop(family, ptr, buffer.data, buffer.len)
-
-  return unsafe { cstring_to_vstring(buffer.data) }
-}
-
 fn new_ipaddress(p NewIpAddressConfig) ?IpAddress {
   return IpAddress {
     family: p.family,
@@ -27,9 +35,28 @@ fn new_ipaddress(p NewIpAddressConfig) ?IpAddress {
   }
 }
 
+fn (addr IpAddress) as_in_addr() ?C.in_addr {
+  out := C.in_addr{}
+  inet_pton(addr.family, addr.addr, &out)?
+  return out
+}
+
 struct IpSocketAddress {
   IpAddress
   port u16
+}
+
+fn (addr IpSocketAddress) as_sockaddr_in() ?C.sockaddr_in {
+  if addr.family != net.AddrFamily.ip {
+    return error('invalid address family')
+  }
+
+  mut out := C.sockaddr_in{}
+  out.sin_family = u16(addr.family)
+  out.sin_port = addr.port
+  inet_pton(addr.family, addr.addr, &out.sin_addr)?
+
+  return out
 }
 
 [params]
@@ -77,6 +104,15 @@ struct IpAddressCidr {
   length u8
 }
 
+fn (cidr IpAddressCidr) as_wg_allowed_ip() ?C.wg_allowedip {
+  mut out := C.wg_allowedip{next_allowedip: 0}
+  out.family = u16(cidr.family)
+
+  out.cidr = cidr.length
+
+  return out
+}
+
 [params]
 struct NewIpAddressCidrConfig {
   allowed_ip_ptr &C.wg_allowedip
@@ -103,6 +139,29 @@ struct PeerRepr {
   public_key Key
   addr IpSocketAddress
   allowed_ips []IpAddressCidr
+}
+
+fn (peer PeerRepr) as_wg_peer() ?C.wg_peer {
+  mut out := C.wg_peer{first_allowedip: 0, last_allowedip: 0, next_peer: 0}
+  out.flags = peer.flags
+
+  // vlang can't return and copy fixed-sized-array
+  copy(&out.public_key[..], peer.public_key.as_wg_key()?)
+  out.addr4 = peer.addr.as_sockaddr_in()?
+
+  mut prev := out.first_allowedip
+  for a in peer.allowed_ips {
+    aip :=  a.as_wg_allowed_ip()?
+    if out.first_allowedip == 0 {
+      out.first_allowedip = &aip
+    }
+    if prev != 0 {
+      prev.next_allowedip = &aip
+    }
+    prev = &aip
+  }
+
+  return out
 }
 
 struct DeviceRepr {
@@ -154,6 +213,21 @@ pub fn open_device_repr(name string) ?DeviceRepr {
     private_key: new_key(ptr: &base.private_key[0])?,
     listen_port: base.listen_port,
     peers: peers,
+  }
+}
+
+pub fn (d DeviceRepr) apply() ? {
+  // currently only append peer
+  base := C.wg_device{}
+
+  prev := base.first_peer
+  for p in d.peers {
+    peer := p.as_wg_peer()?
+  }
+
+  rc := C.wg_set_device(&base)
+  if rc != 0 {
+    return error('wg_set_device() failed')
   }
 }
 

@@ -28,6 +28,7 @@ mut:
 }
 struct C.in6_addr {}
 struct C.wg_allowedip {
+mut:
 	family u16
 	ip4 C.in_addr
 	ip6 C.in6_addr
