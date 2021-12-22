@@ -45,7 +45,7 @@ fn new_ip_socket_address(p NewIpSocketAddressConfig) ?IpSocketAddress {
     return IpSocketAddress {
       family: net.AddrFamily.ip,
       addr: inet_ntop(net.AddrFamily.ip, &sa.sin_addr),
-      port: sa.sin_port,
+      port: u16(C.ntohs(sa.sin_port)),
     }
   } else {
     sa := C.sockaddr_in6{}
@@ -54,7 +54,7 @@ fn new_ip_socket_address(p NewIpSocketAddressConfig) ?IpSocketAddress {
     return IpSocketAddress {
       family: net.AddrFamily.ip,
       addr: inet_ntop(net.AddrFamily.ip, &sa.sin6_addr),
-      port: sa.sin6_port,
+      port: u16(C.ntohs(sa.sin6_port)),
     }
   }
 }

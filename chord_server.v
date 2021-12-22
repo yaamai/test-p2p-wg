@@ -203,7 +203,14 @@ fn (s TestStore) get(key string) ?string {
   return s.m[key]
 }
 
+struct DeviceSetRequset {
+  add wireguard.DeviceRepr
+}
 fn (mut s TestStore) set(key string, val string) ? {
+  println("Store.set(): $key $val")
+  if key == s.self_id {
+    json.decode(DeviceSetRequset, val)
+  }
   s.m[key] = val
 }
 
