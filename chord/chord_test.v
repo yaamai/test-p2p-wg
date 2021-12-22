@@ -9,6 +9,9 @@ fn test_range() {
 
   r3 := Range<string>{from: "c", to: "a"}
   assert !r3.contains("b")
+
+  r4 := Range<string>{from: "c", to: "a", to_inclusive: true}
+  assert r4.contains("a")
 }
 
 fn test_range_inclusive() {

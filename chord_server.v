@@ -195,6 +195,7 @@ mut:
 }
 
 fn (s TestStore) get(key string) ?string {
+  println("Store.get(): $key")
   if key == s.self_id {
     d := wireguard.open_device_repr(s.dev.get_name())?
     return json.encode(d)

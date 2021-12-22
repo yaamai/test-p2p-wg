@@ -33,15 +33,19 @@ pub fn (r Range<T>) contains(value T) bool {
     }
     return r.from < value && value < r.to
   } else {
+    if r.to_inclusive {
+      return r.from < value || value <= r.to
+    }
     return r.from < value || value < r.to
   }
 }
 
 // vlang generics does not allow multiple types?
 struct Node {
-  id string
   store Store
   comm Communicator
+pub:
+  id string
 
 pub mut:
   successor string
@@ -89,7 +93,7 @@ pub fn (n Node) find_successor(id string) ?string {
 pub fn (n Node) query(id string) ?string {
   successor := n.find_successor(id)?
   if successor != n.id {
-    return n.comm.query(n.successor, id)
+    return n.comm.query(successor, id)
   }
   return n.store.get(id.str())
 }

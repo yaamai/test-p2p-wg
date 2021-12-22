@@ -250,7 +250,7 @@ pub fn (d Device) get_public_key() string {
 pub fn (mut d Device) set_peer(peer Peer) ? {
   d.base.first_peer = peer.base
   d.base.last_peer = peer.base
-  d.base.flags = C.WGDEVICE_REPLACE_PEERS
+  // d.base.flags = C.WGDEVICE_REPLACE_PEERS
 
   rc := C.wg_set_device(d.base)
   if rc != 0 {

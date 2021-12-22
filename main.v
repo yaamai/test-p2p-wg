@@ -96,7 +96,9 @@ fn apply_config(c Config) ?wireguard.Device {
       println(err)
       continue
     }
-    netlink.add_if_route(peer.tunnel_addr, 32, dev.get_index(), true)?
+    netlink.add_if_route(peer.tunnel_addr, 32, dev.get_index(), true) or {
+      continue
+    }
   }
 
   return dev
@@ -146,12 +148,13 @@ fn stabilize_loop(mut node chord.Node) {
       }
 
       // TODO: log if changed
-      // println("${node.successor} <-> ${node.predecessor}")
+      println("${node.predecessor} <--  ${node.id}  --> ${node.successor}")
       time.sleep(5*time.second)
     }
 }
 
 /*
+sudo ip netns exec siteA ip link del dev veth0
 sudo ip netns del siteA
 sudo ip netns del siteB
 sudo ip netns add siteA
@@ -167,3 +170,31 @@ sudo ip netns exec siteA ip link set dev lo up
 sudo ip netns exec siteB ip link set dev lo up
 */
 
+/*
+sudo ip netns add siteA
+sudo ip netns add siteB
+sudo ip netns add siteC
+
+sudo ip link add vethA type veth peer name veth0
+sudo ip link set dev veth0 netns siteA
+sudo ip link add vethB type veth peer name veth0
+sudo ip link set dev veth0 netns siteB
+sudo ip link add vethC type veth peer name veth0
+sudo ip link set dev veth0 netns siteC
+
+sudo ip link add inet0 type bridge
+sudo ip link set dev inet0 up
+sudo ip link set dev vethA master inet0 up
+sudo ip link set dev vethB master inet0 up
+sudo ip link set dev vethC master inet0 up
+
+sudo ip netns exec siteA ip addr add dev veth0 10.0.0.1/24
+sudo ip netns exec siteB ip addr add dev veth0 10.0.0.2/24
+sudo ip netns exec siteC ip addr add dev veth0 10.0.0.3/24
+sudo ip netns exec siteA ip link set dev veth0 up addr 5e:55:de:aa:e7:43
+sudo ip netns exec siteB ip link set dev veth0 up addr 5e:55:de:bb:e7:43
+sudo ip netns exec siteC ip link set dev veth0 up addr 5e:55:de:cc:e7:43
+sudo ip netns exec siteA ip link set dev lo up
+sudo ip netns exec siteB ip link set dev lo up
+sudo ip netns exec siteC ip link set dev lo up
+*/
