@@ -35,10 +35,8 @@ fn new_ipaddress(p NewIpAddressConfig) ?IpAddress {
   }
 }
 
-fn (addr IpAddress) as_in_addr() ?C.in_addr {
-  out := C.in_addr{}
+fn (addr IpAddress) as_in_addr(mut out &C.in_addr) ? {
   inet_pton(addr.family, addr.addr, &out)?
-  return out
 }
 
 struct IpSocketAddress {
@@ -46,17 +44,14 @@ struct IpSocketAddress {
   port u16
 }
 
-fn (addr IpSocketAddress) as_sockaddr_in() ?C.sockaddr_in {
+fn (addr IpSocketAddress) as_sockaddr_in(mut out &C.sockaddr_in) ? {
   if addr.family != net.AddrFamily.ip {
     return error('invalid address family')
   }
 
-  mut out := C.sockaddr_in{}
   out.sin_family = u16(addr.family)
   out.sin_port = addr.port
   inet_pton(addr.family, addr.addr, &out.sin_addr)?
-
-  return out
 }
 
 [params]
@@ -104,13 +99,10 @@ struct IpAddressCidr {
   length u8
 }
 
-fn (cidr IpAddressCidr) as_wg_allowed_ip() ?C.wg_allowedip {
-  mut out := C.wg_allowedip{next_allowedip: 0}
+fn (cidr IpAddressCidr) as_wg_allowed_ip(mut out &C.wg_allowedip) ? {
   out.family = u16(cidr.family)
-
   out.cidr = cidr.length
-
-  return out
+  cidr.IpAddress.as_in_addr(mut &out.ip4)?
 }
 
 [params]
@@ -141,17 +133,20 @@ struct PeerRepr {
   allowed_ips []IpAddressCidr
 }
 
-fn (peer PeerRepr) as_wg_peer() ?C.wg_peer {
-  mut out := C.wg_peer{first_allowedip: 0, last_allowedip: 0, next_peer: 0}
+fn (peer PeerRepr) as_wg_peer(mut out &C.wg_peer) ? {
+  // println("as_wg_peer $out")
+  // println(peer.flags)
   out.flags = peer.flags
 
   // vlang can't return and copy fixed-sized-array
-  copy(&out.public_key[..], peer.public_key.as_wg_key()?)
-  out.addr4 = peer.addr.as_sockaddr_in()?
+  peer.public_key.as_wg_key(mut &out.public_key[0])?
+  // println("as_wg_peer as_wg_key $out.public_key")
+  peer.addr.as_sockaddr_in(mut &out.addr4)?
 
   mut prev := out.first_allowedip
   for a in peer.allowed_ips {
-    aip :=  a.as_wg_allowed_ip()?
+    mut aip := C.wg_allowedip{next_allowedip: 0}
+    a.as_wg_allowed_ip(mut &aip)?
     if out.first_allowedip == 0 {
       out.first_allowedip = &aip
     }
@@ -160,8 +155,7 @@ fn (peer PeerRepr) as_wg_peer() ?C.wg_peer {
     }
     prev = &aip
   }
-
-  return out
+  out.last_allowedip = prev
 }
 
 struct DeviceRepr {
@@ -216,14 +210,27 @@ pub fn open_device_repr(name string) ?DeviceRepr {
   }
 }
 
-pub fn (d DeviceRepr) apply() ? {
+pub fn (d DeviceRepr) as_wg_device(mut out &C.wg_device) ? {
   // currently only append peer
-  base := C.wg_device{}
 
-  prev := base.first_peer
+  mut prev := out.first_peer
   for p in d.peers {
-    peer := p.as_wg_peer()?
+    mut peer := C.wg_peer{}
+    p.as_wg_peer(mut &peer)?
+    if out.first_peer == 0 {
+      out.first_peer = &peer
+    }
+    if prev != 0 {
+      prev.next_peer = &peer
+    }
+    prev = &peer
   }
+  out.last_peer = prev
+}
+
+pub fn (d DeviceRepr) apply() ? {
+  mut base := C.wg_device{}
+  d.as_wg_device(mut &base)?
 
   rc := C.wg_set_device(&base)
   if rc != 0 {

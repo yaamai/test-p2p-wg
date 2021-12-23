@@ -51,13 +51,12 @@ pub fn (k Key) str() (string) {
   return k.keystr.clone()
 }
 
-pub fn (k Key) as_wg_key() ?[]byte {
-  buf := [32]byte{}
-  rc := C.wg_key_from_base64(&buf, k.keystr.str)
+pub fn (k Key) as_wg_key(mut out &byte) ? {
+  // println("as_wg_key $k.keystr")
+  rc := C.wg_key_from_base64(out, k.keystr.str)
   if rc < 0 {
     return error("wg_key_from_base64() failed: ${rc}")
   }
-  return buf[..]
 }
 
 pub fn (k Key) public() ?Key {

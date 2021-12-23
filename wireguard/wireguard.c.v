@@ -62,9 +62,9 @@ mut:
     rx_bytes u64
     tx_bytes u64
     persistent_keepalive_interval u16
-    first_allowedip &C.wg_allowedip
-    last_allowedip &C.wg_allowedip
-    next_peer &C.wg_peer
+    first_allowedip &C.wg_allowedip = 0
+    last_allowedip &C.wg_allowedip = 0
+    next_peer &C.wg_peer = 0
 }
 
 struct C.wg_device {
