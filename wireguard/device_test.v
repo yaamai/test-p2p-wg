@@ -7,6 +7,7 @@ fn test_repr() ? {
   dev := json.decode(DeviceRepr, devstr)?
   mut wgdev := C.wg_device{}
   dev.as_wg_device(mut &wgdev)?
+  assert wgdev.name == [byte(115), 115, 115, 48, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]!
   assert wgdev.first_peer.flags == 4
   assert wgdev.first_peer.public_key == [byte(194), 28, 103, 225, 16, 83, 22, 163, 99, 216, 93, 53, 29, 191, 1, 68, 81, 146, 118, 139, 219, 74, 82, 113, 39, 176, 156, 86, 100, 139, 49, 83]!
   assert wgdev.first_peer.addr4.sin_family == 2

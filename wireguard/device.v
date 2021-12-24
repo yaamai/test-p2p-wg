@@ -211,8 +211,8 @@ pub fn open_device_repr(name string) ?DeviceRepr {
 }
 
 pub fn (d DeviceRepr) as_wg_device(mut out &C.wg_device) ? {
+  unsafe { vmemcpy(&out.name, d.name.str, d.name.len) }
   // currently only append peer
-
   mut prev := out.first_peer
   for p in d.peers {
     mut peer := C.wg_peer{}
@@ -234,7 +234,7 @@ pub fn (d DeviceRepr) apply() ? {
 
   rc := C.wg_set_device(&base)
   if rc != 0 {
-    return error('wg_set_device() failed')
+    return error('wg_set_device() failed ${rc}')
   }
 }
 
@@ -299,11 +299,16 @@ pub fn (d Device) get_allowed_ips_converted(f fn(string) string) map[string]stri
   b := []byte{len: 15}
   public := []byte{len: 45}
 
+  rc := C.wg_get_device(&d.base, &d.base.name[0])
+  if rc != 0 {
+    println('wg_get_device() failed')
+  }
+
   for peer := d.base.first_peer; peer != 0; peer = peer.next_peer {
     for ip := peer.first_allowedip; ip != 0; ip = ip.next_allowedip {
       C.inet_ntop(net.AddrFamily.ip, &ip.ip4, b.data, b.len)
       C.wg_key_to_base64(public.data, &peer.public_key[0])
-      result[f(string(public))] = string(b)
+      result[f(string(public))] = string(b).clone()
     }
   }
   return result
