@@ -210,10 +210,6 @@ fn (mut s TestStore) set(key string, val string) ? {
     dev := json.decode(wireguard.DeviceRepr, val)?
     println("Store.set(): $dev")
     dev.apply()?
-    // append self public key to communication target peer (pubkey: self.pubkey, allowed-ip: self.ip)
-    // get target endpoint and target tunnel ip from target's successor
-    // append target peer pubkey to self (pubkey: target.pubkey, endpoint: target.ep, allowed_ip: target.ip)
-    // add ip route on target peer
   }
   s.m[key] = val
 }
