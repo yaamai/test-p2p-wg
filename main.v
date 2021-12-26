@@ -88,15 +88,12 @@ fn apply_config(c Config) ?wireguard.Device {
 
   // TODO: address should be replace, not add
   netlink.set_interface_up(dev.get_index())?
-  netlink.add_interface_addr(dev.get_index(), c.tunnel_addr, 32)?
+  netlink.add_interface_addr(dev.get_index(), c.tunnel_addr, 24)?
 
   for peer in c.peers {
     p := wireguard.new_peer(key: peer.public_key, addr: peer.addr, port: peer.port, allowed_ip: peer.tunnel_addr)?
     dev.set_peer(p) or {
       println(err)
-      continue
-    }
-    netlink.add_if_route(peer.tunnel_addr, 32, dev.get_index(), true) or {
       continue
     }
   }

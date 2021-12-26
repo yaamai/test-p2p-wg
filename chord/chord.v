@@ -3,8 +3,8 @@ module chord
 // currently(2021/12) vlang does not support multiple template variables
 // and interface that referencing self are also not supported.
 interface Store {
-  get(string) ?string
-  set(string, string) ?
+  get(Node, string) ?string
+  set(Node, string, string) ?
 }
 
 interface Communicator {
@@ -95,14 +95,14 @@ pub fn (n Node) query(id string) ?string {
   if successor != n.id {
     return n.comm.query(successor, id)
   }
-  return n.store.get(id.str())
+  return n.store.get(n, id.str())
 }
 
 pub fn (n Node) set(id string, data string) ? {
   mut successor := n.find_successor(id)?
   // println("set: ${n.id} ${n.successor} ${successor}")
   if successor == n.id {
-    n.store.set(id.str(), data)?
+    n.store.set(n, id.str(), data)?
     return
   }
 

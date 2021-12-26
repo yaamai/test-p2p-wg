@@ -1,6 +1,6 @@
 module wireguard
 
-struct Key {
+pub struct Key {
 pub mut:
   key [32]byte [skip]
   keystr string

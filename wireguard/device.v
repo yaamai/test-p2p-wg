@@ -17,7 +17,7 @@ fn inet_pton(family net.AddrFamily, addr string, ptr voidptr) ? {
 }
 
 
-struct IpAddress {
+pub struct IpAddress {
   family net.AddrFamily
   addr string
 }
@@ -94,7 +94,7 @@ fn new_ip_socket_address(p NewIpSocketAddressConfig) ?IpSocketAddress {
   }
 */
 
-struct IpAddressCidr {
+pub struct IpAddressCidr {
   IpAddress
   length u8
 }
@@ -126,7 +126,7 @@ fn new_ip_address_cidr(p NewIpAddressCidrConfig) ?IpAddressCidr {
   }
 }
 
-struct PeerRepr {
+pub struct PeerRepr {
   flags int
   public_key Key
   addr IpSocketAddress
@@ -158,7 +158,7 @@ fn (peer PeerRepr) as_wg_peer(mut out &C.wg_peer) ? {
   out.last_allowedip = prev
 }
 
-struct DeviceRepr {
+pub struct DeviceRepr {
   name string
   flags int
   public_key Key

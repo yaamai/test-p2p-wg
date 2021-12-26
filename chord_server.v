@@ -192,19 +192,26 @@ struct TestStore {
 mut:
   m map[string]string
   dev wireguard.Device
+  node chord.Node
   self_id string
 }
 
-fn (s TestStore) get(key string) ?string {
+struct NodeInfo {
+  wireguard wireguard.DeviceRepr
+  successor string
+}
+
+fn (s TestStore) get(node chord.Node, key string) ?string {
   println("Store.get(): $key")
   if key == s.self_id {
     d := wireguard.open_device_repr(s.dev.get_name())?
-    return json.encode(d)
+    n := NodeInfo{wireguard: d, successor: node.successor}
+    return json.encode(n)
   }
   return s.m[key]
 }
 
-fn (mut s TestStore) set(key string, val string) ? {
+fn (mut s TestStore) set(node chord.Node, key string, val string) ? {
   println("Store.set(): $key $val")
   if key == s.self_id {
     dev := json.decode(wireguard.DeviceRepr, val)?
