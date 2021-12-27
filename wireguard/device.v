@@ -46,11 +46,13 @@ struct IpSocketAddress {
 
 fn (addr IpSocketAddress) as_sockaddr_in(mut out &C.sockaddr_in) ? {
   if addr.family != net.AddrFamily.ip {
-    return error('invalid address family')
+    println('invalid address family')
+    // TODO: may require zero erase sockaddr
+    return
   }
 
   out.sin_family = u16(addr.family)
-  out.sin_port = addr.port
+  out.sin_port = u16(C.htons(addr.port))
   inet_pton(addr.family, addr.addr, &out.sin_addr)?
 }
 
@@ -95,6 +97,7 @@ fn new_ip_socket_address(p NewIpSocketAddressConfig) ?IpSocketAddress {
 */
 
 pub struct IpAddressCidr {
+pub:
   IpAddress
   length u8
 }
@@ -127,6 +130,7 @@ fn new_ip_address_cidr(p NewIpAddressCidrConfig) ?IpAddressCidr {
 }
 
 pub struct PeerRepr {
+pub:
   flags int
   public_key Key
   addr IpSocketAddress
@@ -159,7 +163,9 @@ fn (peer PeerRepr) as_wg_peer(mut out &C.wg_peer) ? {
 }
 
 pub struct DeviceRepr {
+pub:
   name string
+pub mut:
   flags int
   public_key Key
   private_key Key

@@ -8,11 +8,11 @@ interface Store {
 }
 
 interface Communicator {
-  get_predecessor(string) ?string
-  find_successor(string, string) ?string
-  notify(string, string) ?
-  query(string, string) ?string
-  store(string, string, string) ?
+  get_predecessor(Node, string) ?string
+  find_successor(Node, string, string) ?string
+  notify(Node, string, string) ?
+  query(Node, string, string) ?string
+  store(Node, string, string, string) ?
 }
   
 
@@ -56,14 +56,14 @@ pub mut:
 
 pub fn (mut n Node) stabilize() ? {
   // println(">> ${n}.stabilize():")
-  if pred := n.comm.get_predecessor(n.successor) {
+  if pred := n.comm.get_predecessor(n, n.successor) {
     range := Range<string>{from: n.id, to: n.successor}
     if range.contains(pred) {
       n.successor = pred
     }
   }
 
-  n.comm.notify(n.successor, n.id)?
+  n.comm.notify(n, n.successor, n.id)?
   // println("<< ${n}.stabilize():")
 }
 
@@ -87,13 +87,13 @@ pub fn (n Node) find_successor(id string) ?string {
   if range.contains(id) {
     return n.successor
   }
-  return n.comm.find_successor(n.successor, id)
+  return n.comm.find_successor(n, n.successor, id)
 }
 
 pub fn (n Node) query(id string) ?string {
   successor := n.find_successor(id)?
   if successor != n.id {
-    return n.comm.query(successor, id)
+    return n.comm.query(n, successor, id)
   }
   return n.store.get(n, id.str())
 }
@@ -106,7 +106,7 @@ pub fn (n Node) set(id string, data string) ? {
     return
   }
 
-  return n.comm.store(n.successor, id, data)
+  return n.comm.store(n, n.successor, id, data)
 }
 
 
