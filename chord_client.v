@@ -16,14 +16,22 @@ pub mut:
 
 fn (c WireguardComm) do_nat_traversal(node chord.Node, id string) ? {
   println("do_nat_traversal(): $id")
+
+  self_succsessor_info_str := c.query(node, c.connectable, c.connectable)?
+  self_succsessor_info := json.decode(NodeInfo, self_succsessor_info_str)?
+  self_external_endpoint := self_succsessor_info.wireguard.peers.filter(generate_chord_id_from_pubkey(it.public_key.keystr) == node.id)[0].addr
+  println("checking self external ip $self_external_endpoint")
+  
   self_pubkey := c.dev.get_public_key()
   self_tunnel_addr := netlink.get_interface_addr(c.dev.get_index())?
   peer_append_req := wireguard.DeviceRepr{
     name: "sss0",
     peers: [
       wireguard.PeerRepr{
+        addr: self_external_endpoint,
         public_key: wireguard.Key{keystr: self_pubkey},
-        allowed_ips: [wireguard.IpAddressCidr{IpAddress: wireguard.IpAddress{addr: self_tunnel_addr, family: net.AddrFamily.ip}, length: 32}]
+        allowed_ips: [wireguard.IpAddressCidr{IpAddress: wireguard.IpAddress{addr: self_tunnel_addr, family: net.AddrFamily.ip}, length: 32}],
+        persistent_keepalive_interval: 25,
       }
     ]
   }

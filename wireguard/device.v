@@ -135,12 +135,17 @@ pub:
   public_key Key
   addr IpSocketAddress
   allowed_ips []IpAddressCidr
+  persistent_keepalive_interval int
 }
 
 fn (peer PeerRepr) as_wg_peer(mut out &C.wg_peer) ? {
   // println("as_wg_peer $out")
   // println(peer.flags)
   out.flags = peer.flags
+  if peer.persistent_keepalive_interval != 0 {
+    out.persistent_keepalive_interval = u16(peer.persistent_keepalive_interval)
+    out.flags |= C.WGPEER_HAS_PERSISTENT_KEEPALIVE_INTERVAL
+  }
 
   // vlang can't return and copy fixed-sized-array
   peer.public_key.as_wg_key(mut &out.public_key[0])?
