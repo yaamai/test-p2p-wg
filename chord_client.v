@@ -31,7 +31,7 @@ fn (c WireguardComm) do_nat_traversal(node chord.Node, id string) ? {
         addr: self_external_endpoint,
         public_key: wireguard.Key{keystr: self_pubkey},
         allowed_ips: [wireguard.IpAddressCidr{IpAddress: wireguard.IpAddress{addr: self_tunnel_addr, family: net.AddrFamily.ip}, length: 32}],
-        persistent_keepalive_interval: 25,
+        persistent_keepalive_interval: 5,
       }
     ]
   }
